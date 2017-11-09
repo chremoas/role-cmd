@@ -1,20 +1,25 @@
 package command
 
 import (
+	"bytes"
 	"fmt"
-	proto "github.com/abaeve/chremoas/proto"
 	uauthsvc "github.com/abaeve/auth-srv/proto"
+	proto "github.com/abaeve/chremoas/proto"
 	"golang.org/x/net/context"
 	"strings"
 )
 
 type ClientFactory interface {
-	NewClient() uauthsvc.UserAuthenticationAdminClient
+	NewAdminClient() uauthsvc.UserAuthenticationAdminClient
+	NewEntityQueryClient() uauthsvc.EntityQueryClient
+	NewEntityAdminClient() uauthsvc.EntityAdminClient
 }
+
+var clientFactory ClientFactory
 
 type Command struct {
 	//Store anything you need the Help or Exec functions to have access to here
-	name string
+	name    string
 	factory ClientFactory
 }
 
@@ -27,15 +32,17 @@ func (c *Command) Help(ctx context.Context, req *proto.HelpRequest, rsp *proto.H
 func (c *Command) Exec(ctx context.Context, req *proto.ExecRequest, rsp *proto.ExecResponse) error {
 	var response string
 
-	commandList := map[string]func([]string) string{
+	commandList := map[string]func(context.Context, []string) string{
 		"help":        help,
+		"list_roles":  listRoles,
 		"add_role":    addRole,
-		"delete_role": notDefined,
+		"delete_role": deleteRole,
+		"notDefined": notDefined,
 	}
 
 	f, ok := commandList[req.Args[1]]
 	if ok {
-		response = f(req.Args)
+		response = f(ctx, req.Args)
 	} else {
 		response = fmt.Sprintf("Not a valid subcommand: %s", req.Args[1])
 	}
@@ -44,36 +51,94 @@ func (c *Command) Exec(ctx context.Context, req *proto.ExecRequest, rsp *proto.E
 	return nil
 }
 
-func help(args []string) string {
-	return "This will be help info at some point.\nCan I do line breaks?"
+func help(ctx context.Context, args []string) string {
+	var buffer bytes.Buffer
+
+	buffer.WriteString("Usage: !admin <subcommand> <arguments>\n")
+	buffer.WriteString("\nSubcommands:\n")
+	buffer.WriteString("\tlist_roles: Lists all roles\n")
+	buffer.WriteString("\tadd_role <role name> <chat service name>: Add Role\n")
+	buffer.WriteString("\tdelete_role <role name>: Delete Role\n")
+	buffer.WriteString("\thelp: This text\n")
+
+	return fmt.Sprintf("```%s```", buffer.String())
 }
 
-func addRole(args []string) string {
-	role := args[2]
-	roleName := strings.Join(args[3:], " ")
-	return fmt.Sprintf("adding: %s -- %s", role, roleName)
+func addRole(ctx context.Context, args []string) string {
+	var buffer bytes.Buffer
+	client := clientFactory.NewEntityAdminClient()
+	roleName := args[2]
+	chatServiceGroup := strings.Join(args[3:], " ")
+
+	if len(chatServiceGroup) > 0 && chatServiceGroup[0] == '"' {
+		chatServiceGroup = chatServiceGroup[1:]
+	}
+	if len(chatServiceGroup) > 0 && chatServiceGroup[len(chatServiceGroup)-1] == '"' {
+		chatServiceGroup = chatServiceGroup[:len(chatServiceGroup)-1]
+	}
+
+	output, err := client.RoleUpdate(ctx, &uauthsvc.RoleAdminRequest{
+		Role:      &uauthsvc.Role{RoleName: roleName, ChatServiceGroup: chatServiceGroup},
+		Operation: uauthsvc.EntityOperation_ADD_OR_UPDATE,
+	})
+
+	if err != nil {
+		buffer.WriteString(err.Error())
+	} else {
+		buffer.WriteString(output.String())
+	}
+
+	return fmt.Sprintf("```%s```", buffer.String())
 }
 
-func notDefined(args []string) string {
+func deleteRole(ctx context.Context, args []string) string {
+	var buffer bytes.Buffer
+	client := clientFactory.NewEntityAdminClient()
+	roleName := args[2]
+
+	output, err := client.RoleUpdate(ctx, &uauthsvc.RoleAdminRequest{
+		Role:      &uauthsvc.Role{RoleName: roleName, ChatServiceGroup: "Doesn't matter"},
+		Operation: uauthsvc.EntityOperation_REMOVE,
+	})
+
+	if err != nil {
+		buffer.WriteString(err.Error())
+	} else {
+		buffer.WriteString(output.String())
+	}
+
+	return fmt.Sprintf("```%s```", buffer.String())
+}
+
+func listRoles(ctx context.Context, args []string) string {
+	client := clientFactory.NewEntityQueryClient()
+	output, err := client.GetRoles(ctx, &uauthsvc.EntityQueryRequest{})
+	var buffer bytes.Buffer
+
+	if err != nil {
+		buffer.WriteString(err.Error())
+	} else {
+		if output.String() == "" {
+			buffer.WriteString("There are no roles defined")
+		} else {
+			for role := range output.List {
+				buffer.WriteString(fmt.Sprintf("%s: %s\n",
+					output.List[role].RoleName,
+					output.List[role].ChatServiceGroup,
+				))
+			}
+		}
+	}
+
+	return fmt.Sprintf("```%s```", buffer.String())
+}
+
+func notDefined(ctx context.Context, args []string) string {
 	return "This command hasn't been defined yet"
 }
 
 func NewCommand(name string, factory ClientFactory) *Command {
+	clientFactory = factory
 	newCommand := Command{name: name, factory: factory}
 	return &newCommand
 }
-
-//type UserAuthenticationAdminClient interface {
-//	CharacterRoleAdd(ctx context.Context, in *AuthAdminRequest, opts ...client.CallOption) (*AuthAdminResponse, error)
-//	CharacterRoleRemove(ctx context.Context, in *AuthAdminRequest, opts ...client.CallOption) (*AuthAdminResponse, error)
-//	CorporationAllianceRoleAdd(ctx context.Context, in *AuthAdminRequest, opts ...client.CallOption) (*AuthAdminResponse, error)
-//	CorporationAllianceRoleRemove(ctx context.Context, in *AuthAdminRequest, opts ...client.CallOption) (*AuthAdminResponse, error)
-//	CorporationRoleAdd(ctx context.Context, in *AuthAdminRequest, opts ...client.CallOption) (*AuthAdminResponse, error)
-//	CorporationRoleRemove(ctx context.Context, in *AuthAdminRequest, opts ...client.CallOption) (*AuthAdminResponse, error)
-//	AllianceRoleAdd(ctx context.Context, in *AuthAdminRequest, opts ...client.CallOption) (*AuthAdminResponse, error)
-//	AllianceRoleRemove(ctx context.Context, in *AuthAdminRequest, opts ...client.CallOption) (*AuthAdminResponse, error)
-//	AllianceCharacterLeadershipRoleAdd(ctx context.Context, in *AuthAdminRequest, opts ...client.CallOption) (*AuthAdminResponse, error)
-//	AllianceCharacterLeadershipRoleRemove(ctx context.Context, in *AuthAdminRequest, opts ...client.CallOption) (*AuthAdminResponse, error)
-//	CorporationCharacterLeadershipRoleAdd(ctx context.Context, in *AuthAdminRequest, opts ...client.CallOption) (*AuthAdminResponse, error)
-//	CorporationCharacterLeadershipRoleRemove(ctx context.Context, in *AuthAdminRequest, opts ...client.CallOption) (*AuthAdminResponse, error)
-//}

@@ -40,6 +40,14 @@ type clientFactory struct {
 	client client.Client
 }
 
-func (c clientFactory) NewClient() uauthsvc.UserAuthenticationAdminClient {
+func (c clientFactory) NewAdminClient() uauthsvc.UserAuthenticationAdminClient {
 	return uauthsvc.NewUserAuthenticationAdminClient(c.name, c.client)
+}
+
+func (c clientFactory) NewEntityQueryClient() uauthsvc.EntityQueryClient {
+	return uauthsvc.NewEntityQueryClient(c.name, c.client)
+}
+
+func (c clientFactory) NewEntityAdminClient() uauthsvc.EntityAdminClient {
+	return uauthsvc.NewEntityAdminClient(c.name, c.client)
 }
