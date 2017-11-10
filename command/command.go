@@ -10,6 +10,7 @@ import (
 )
 
 type ClientFactory interface {
+	NewClient() uauthsvc.UserAuthenticationClient
 	NewAdminClient() uauthsvc.UserAuthenticationAdminClient
 	NewEntityQueryClient() uauthsvc.EntityQueryClient
 	NewEntityAdminClient() uauthsvc.EntityAdminClient
@@ -32,17 +33,18 @@ func (c *Command) Help(ctx context.Context, req *proto.HelpRequest, rsp *proto.H
 func (c *Command) Exec(ctx context.Context, req *proto.ExecRequest, rsp *proto.ExecResponse) error {
 	var response string
 
-	commandList := map[string]func(context.Context, []string) string{
+	commandList := map[string]func(context.Context, *proto.ExecRequest) string{
 		"help":        help,
 		"list_roles":  listRoles,
 		"add_role":    addRole,
 		"delete_role": deleteRole,
-		"notDefined": notDefined,
+		"my_id":       myID,
+		"notDefined":  notDefined,
 	}
 
 	f, ok := commandList[req.Args[1]]
 	if ok {
-		response = f(ctx, req.Args)
+		response = f(ctx, req)
 	} else {
 		response = fmt.Sprintf("Not a valid subcommand: %s", req.Args[1])
 	}
@@ -51,7 +53,7 @@ func (c *Command) Exec(ctx context.Context, req *proto.ExecRequest, rsp *proto.E
 	return nil
 }
 
-func help(ctx context.Context, args []string) string {
+func help(ctx context.Context, req *proto.ExecRequest) string {
 	var buffer bytes.Buffer
 
 	buffer.WriteString("Usage: !admin <subcommand> <arguments>\n")
@@ -64,11 +66,11 @@ func help(ctx context.Context, args []string) string {
 	return fmt.Sprintf("```%s```", buffer.String())
 }
 
-func addRole(ctx context.Context, args []string) string {
+func addRole(ctx context.Context, req *proto.ExecRequest) string {
 	var buffer bytes.Buffer
 	client := clientFactory.NewEntityAdminClient()
-	roleName := args[2]
-	chatServiceGroup := strings.Join(args[3:], " ")
+	roleName := req.Args[2]
+	chatServiceGroup := strings.Join(req.Args[3:], " ")
 
 	if len(chatServiceGroup) > 0 && chatServiceGroup[0] == '"' {
 		chatServiceGroup = chatServiceGroup[1:]
@@ -91,10 +93,10 @@ func addRole(ctx context.Context, args []string) string {
 	return fmt.Sprintf("```%s```", buffer.String())
 }
 
-func deleteRole(ctx context.Context, args []string) string {
+func deleteRole(ctx context.Context, req *proto.ExecRequest) string {
 	var buffer bytes.Buffer
 	client := clientFactory.NewEntityAdminClient()
-	roleName := args[2]
+	roleName := req.Args[2]
 
 	output, err := client.RoleUpdate(ctx, &uauthsvc.RoleAdminRequest{
 		Role:      &uauthsvc.Role{RoleName: roleName, ChatServiceGroup: "Doesn't matter"},
@@ -110,7 +112,7 @@ func deleteRole(ctx context.Context, args []string) string {
 	return fmt.Sprintf("```%s```", buffer.String())
 }
 
-func listRoles(ctx context.Context, args []string) string {
+func listRoles(ctx context.Context, req *proto.ExecRequest) string {
 	client := clientFactory.NewEntityQueryClient()
 	output, err := client.GetRoles(ctx, &uauthsvc.EntityQueryRequest{})
 	var buffer bytes.Buffer
@@ -133,7 +135,24 @@ func listRoles(ctx context.Context, args []string) string {
 	return fmt.Sprintf("```%s```", buffer.String())
 }
 
-func notDefined(ctx context.Context, args []string) string {
+func myID(ctx context.Context, req *proto.ExecRequest) string {
+	senderID := strings.Split(req.Sender, ":")[1]
+
+	authClient := clientFactory.NewClient()
+	response, err := authClient.GetRoles(ctx, &uauthsvc.GetRolesRequest{UserId: senderID})
+	if err != nil {
+		return err.Error()
+	}
+
+	fmt.Printf("%+v\n", response.Roles)
+
+	if len(response.GetRoles()) == 0 {
+		return fmt.Sprintf("<@%s> You have no roles", senderID)
+	}
+	return strings.Join(response.GetRoles(), " ")
+}
+
+func notDefined(ctx context.Context, req *proto.ExecRequest) string {
 	return "This command hasn't been defined yet"
 }
 
