@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/abaeve/auth-admin-bot/command"
-	uauthsvc "github.com/abaeve/auth-srv/proto"
-	proto "github.com/abaeve/chremoas/proto"
-	"github.com/abaeve/services-common/config"
+	"github.com/chremoas/role-cmd/command"
+	uauthsvc "github.com/chremoas/auth-srv/proto"
+	proto "github.com/chremoas/chremoas/proto"
+	"github.com/chremoas/services-common/config"
 	"github.com/micro/go-micro"
 	"github.com/micro/go-micro/client"
 )
