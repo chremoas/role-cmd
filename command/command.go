@@ -3,8 +3,8 @@ package command
 import (
 	"bytes"
 	"fmt"
-	uauthsvc "github.com/abaeve/auth-srv/proto"
-	proto "github.com/abaeve/chremoas/proto"
+	uauthsvc "github.com/chremoas/auth-srv/proto"
+	proto "github.com/chremoas/chremoas/proto"
 	"golang.org/x/net/context"
 	"strings"
 )
