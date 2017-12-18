@@ -10,7 +10,7 @@ import (
 	"github.com/micro/go-micro/client"
 )
 
-var Version string = "1.0.0"
+var Version = "1.0.0"
 var service micro.Service
 
 func main() {
