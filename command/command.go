@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	uauthsvc "github.com/chremoas/auth-srv/proto"
+	discord "github.com/chremoas/discord-gateway/proto"
 	proto "github.com/chremoas/chremoas/proto"
 	"golang.org/x/net/context"
 	"strings"
@@ -14,6 +15,7 @@ type ClientFactory interface {
 	NewAdminClient() uauthsvc.UserAuthenticationAdminClient
 	NewEntityQueryClient() uauthsvc.EntityQueryClient
 	NewEntityAdminClient() uauthsvc.EntityAdminClient
+	NewDiscordGatewayClient() discord.DiscordGatewayClient
 }
 
 var clientFactory ClientFactory
@@ -35,9 +37,10 @@ func (c *Command) Exec(ctx context.Context, req *proto.ExecRequest, rsp *proto.E
 
 	commandList := map[string]func(context.Context, *proto.ExecRequest) string{
 		"help":        help,
-		"list_roles":  listRoles,
-		"add_role":    addRole,
-		"delete_role": deleteRole,
+		"list":  listRoles,
+		"dlist":  listDRoles,
+		"add":    addRole,
+		"delete": deleteRole,
 		"my_id":       myID,
 		"notDefined":  notDefined,
 	}
@@ -58,9 +61,10 @@ func help(ctx context.Context, req *proto.ExecRequest) string {
 
 	buffer.WriteString("Usage: !admin <subcommand> <arguments>\n")
 	buffer.WriteString("\nSubcommands:\n")
-	buffer.WriteString("\tlist_roles: Lists all roles\n")
-	buffer.WriteString("\tadd_role <role name> <chat service name>: Add Role\n")
-	buffer.WriteString("\tdelete_role <role name>: Delete Role\n")
+	buffer.WriteString("\tlist: Lists all roles\n")
+	buffer.WriteString("\tadd <role name> <chat service name>: Add Role\n")
+	buffer.WriteString("\tdelete <role name>: Delete Role\n")
+	buffer.WriteString("\tdlist: Get roles list from Discord, not Chremoas\n")
 	buffer.WriteString("\thelp: This text\n")
 
 	return fmt.Sprintf("```%s```", buffer.String())
@@ -107,6 +111,20 @@ func deleteRole(ctx context.Context, req *proto.ExecRequest) string {
 		buffer.WriteString(err.Error())
 	} else {
 		buffer.WriteString(output.String())
+	}
+
+	return fmt.Sprintf("```%s```", buffer.String())
+}
+
+func listDRoles(ctx context.Context, req *proto.ExecRequest) string {
+	client := clientFactory.NewDiscordGatewayClient()
+	output, err := client.GetAllRoles(ctx, &discord.GuildObjectRequest{GuildId: "374983726763081738"})
+	var buffer bytes.Buffer
+
+	if err != nil {
+		buffer.WriteString(err.Error())
+	} else {
+		fmt.Sprintf("output: %+v\n", output)
 	}
 
 	return fmt.Sprintf("```%s```", buffer.String())

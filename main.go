@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/chremoas/role-cmd/command"
 	uauthsvc "github.com/chremoas/auth-srv/proto"
+	discord "github.com/chremoas/discord-gateway/proto"
 	proto "github.com/chremoas/chremoas/proto"
 	"github.com/chremoas/services-common/config"
 	"github.com/micro/go-micro"
@@ -54,4 +55,8 @@ func (c clientFactory) NewEntityQueryClient() uauthsvc.EntityQueryClient {
 
 func (c clientFactory) NewEntityAdminClient() uauthsvc.EntityAdminClient {
 	return uauthsvc.NewEntityAdminClient(c.name, c.client)
+}
+
+func (c clientFactory) NewDiscordGatewayClient() discord.DiscordGatewayClient {
+	return discord.NewDiscordGatewayClient(c.name, c.client)
 }
