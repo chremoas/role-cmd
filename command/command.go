@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	uauthsvc "github.com/chremoas/auth-srv/proto"
-	discord "github.com/chremoas/discord-gateway/proto"
 	proto "github.com/chremoas/chremoas/proto"
+	discord "github.com/chremoas/discord-gateway/proto"
 	"golang.org/x/net/context"
 	"strings"
+	"text/tabwriter"
 )
 
 type ClientFactory interface {
@@ -36,13 +37,15 @@ func (c *Command) Exec(ctx context.Context, req *proto.ExecRequest, rsp *proto.E
 	var response string
 
 	commandList := map[string]func(context.Context, *proto.ExecRequest) string{
-		"help":        help,
-		"list":  listRoles,
-		"dlist":  listDRoles,
-		"add":    addRole,
-		"delete": deleteRole,
-		"my_id":       myID,
-		"notDefined":  notDefined,
+		"help":       help,
+		"list":       listRoles,
+		"add":        addRole,
+		"delete":     deleteRole,
+		"dlist":      listDRoles,
+		"dadd":       addDRole,
+		"ddelete":    deleteDRole,
+		"my_id":      myID,
+		"notDefined": notDefined,
 	}
 
 	f, ok := commandList[req.Args[1]]
@@ -116,15 +119,68 @@ func deleteRole(ctx context.Context, req *proto.ExecRequest) string {
 	return fmt.Sprintf("```%s```", buffer.String())
 }
 
-func listDRoles(ctx context.Context, req *proto.ExecRequest) string {
-	client := clientFactory.NewDiscordGatewayClient()
-	output, err := client.GetAllRoles(ctx, &discord.GuildObjectRequest{GuildId: "374983726763081738"})
+func addDRole(ctx context.Context, req *proto.ExecRequest) string {
 	var buffer bytes.Buffer
+	name := strings.Join(req.Args[2:], " ")
+
+	client := clientFactory.NewDiscordGatewayClient()
+	output, err := client.CreateRole(ctx, &discord.CreateRoleRequest{Name: name})
+	//string GuildId = 1;
+	//string Name = 2;
+	//int32 Color = 3;
+	//bool Hoist = 4;
+	//int32 Permissions = 5;
+	//bool Mentionable = 6;
 
 	if err != nil {
 		buffer.WriteString(err.Error())
 	} else {
-		fmt.Sprintf("output: %+v\n", output)
+		buffer.WriteString(output.String())
+	}
+
+	return fmt.Sprintf("```%s```", buffer.String())
+}
+
+func listDRoles(ctx context.Context, req *proto.ExecRequest) string {
+	var buffer bytes.Buffer
+
+	client := clientFactory.NewDiscordGatewayClient()
+	output, err := client.GetAllRoles(ctx, &discord.GuildObjectRequest{})
+
+	if err != nil {
+		buffer.WriteString(err.Error())
+	} else {
+
+		w := tabwriter.NewWriter(&buffer, 0, 0, 1, ' ', tabwriter.Debug)
+		fmt.Fprintln(w, "Position\tName")
+		for _, v := range output.Roles {
+			foo := fmt.Sprintf("%d\t%s", v.Position, v.Name)
+			fmt.Fprintln(w, foo)
+		}
+		w.Flush()
+
+	}
+
+	return fmt.Sprintf("```%s```", buffer.String())
+}
+
+func deleteDRole(ctx context.Context, req *proto.ExecRequest) string {
+	var buffer bytes.Buffer
+	name := strings.Join(req.Args[2:], " ")
+
+	client := clientFactory.NewDiscordGatewayClient()
+	output, err := client.DeleteRole(ctx, &discord.DeleteRoleRequest{Name: name})
+	//string GuildId = 1;
+	//string Name = 2;
+	//int32 Color = 3;
+	//bool Hoist = 4;
+	//int32 Permissions = 5;
+	//bool Mentionable = 6;
+
+	if err != nil {
+		buffer.WriteString(err.Error())
+	} else {
+		buffer.WriteString(output.String())
 	}
 
 	return fmt.Sprintf("```%s```", buffer.String())
