@@ -7,9 +7,9 @@ import (
 	proto "github.com/chremoas/chremoas/proto"
 	discord "github.com/chremoas/discord-gateway/proto"
 	"golang.org/x/net/context"
+	"regexp"
 	"strings"
 	"text/tabwriter"
-	"regexp"
 )
 
 type ClientFactory interface {
@@ -99,49 +99,34 @@ func syncRole(ctx context.Context, req *proto.ExecRequest) string {
 	}
 
 	for dr := range discordRoles.Roles {
-		found := false
-		for cr := range chremoasRoles.List {
-			if discordRoles.Roles[dr].Name == chremoasRoles.List[cr].ChatServiceGroup {
-				found = true
-			}
-		}
+		chremoasClient := clientFactory.NewEntityAdminClient()
 
-		if !found {
-			// addRole(ctx, req)
-			chremoasClient := clientFactory.NewEntityAdminClient()
+		output, err := chremoasClient.RoleUpdate(ctx, &uauthsvc.RoleAdminRequest{
+			Role:      &uauthsvc.Role{ChatServiceGroup: discordRoles.Roles[dr].Name, RoleName: matchSpace.ReplaceAllString(discordRoles.Roles[dr].Name, "_")},
+			Operation: uauthsvc.EntityOperation_ADD_OR_UPDATE,
+		})
 
-			output, err := chremoasClient.RoleUpdate(ctx, &uauthsvc.RoleAdminRequest{
-				Role:      &uauthsvc.Role{ChatServiceGroup: discordRoles.Roles[dr].Name, RoleName: matchSpace.ReplaceAllString(discordRoles.Roles[dr].Name, "_")},
-				Operation: uauthsvc.EntityOperation_ADD_OR_UPDATE,
-			})
-
-			if err != nil {
-				fmt.Printf("Error: %+v\n", err)
-				buffer.WriteString(err.Error())
-			}
+		if err != nil {
+			fmt.Printf("Error: %+v\n", err)
+			buffer.WriteString(err.Error()+"\n")
+		} else {
+			fmt.Printf("Output: %+v\n", output)
+			buffer.WriteString(output.String()+"\n")
 		}
 	}
 
-	//for cr := range chremoasRoles.List {
-	//	found := false
-	//	for dr := range discordRoles.Roles {
-	//		if discordRoles.Roles[dr].Name == chremoasRoles.List[cr].ChatServiceGroup {
-	//			found = true
-	//		}
-	//	}
-	//
-	//	if !found {
-	//		// addDRole(ctx, req)
-	//		discordClient := clientFactory.NewDiscordGatewayClient()
-	//		output, err := discordClient.CreateRole(ctx, &discord.CreateRoleRequest{Name: chremoasRoles.List[cr].ChatServiceGroup})
-	//
-	//		if err != nil {
-	//			buffer.WriteString(err.Error())
-	//		} else {
-	//			buffer.WriteString(output.String())
-	//		}
-	//	}
-	//}
+	for cr := range chremoasRoles.List {
+		discordClient := clientFactory.NewDiscordGatewayClient()
+		output, err := discordClient.CreateRole(ctx, &discord.CreateRoleRequest{Name: chremoasRoles.List[cr].ChatServiceGroup})
+
+		if err != nil {
+			fmt.Printf("Error: %+v\n", err)
+			buffer.WriteString(err.Error()+"\n")
+		} else {
+			fmt.Printf("Output: %+v\n", output)
+			buffer.WriteString(output.String()+"\n")
+		}
+	}
 
 	return fmt.Sprintf("```%s```", buffer.String())
 }
