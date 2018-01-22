@@ -7,6 +7,7 @@ import (
 	proto "github.com/chremoas/chremoas/proto"
 	discord "github.com/chremoas/discord-gateway/proto"
 	"golang.org/x/net/context"
+	"regexp"
 	"strings"
 	"text/tabwriter"
 )
@@ -37,10 +38,12 @@ func (c *Command) Exec(ctx context.Context, req *proto.ExecRequest, rsp *proto.E
 	var response string
 
 	commandList := map[string]func(context.Context, *proto.ExecRequest) string{
-		"help":       help,
-		"list":       listRoles,
-		"add":        addRole,
-		"delete":     deleteRole,
+		"help":   help,
+		"list":   listRoles,
+		"add":    addRole,
+		"delete": deleteRole,
+		"sync":   syncRole,
+		// going to move the discord ones later
 		"dlist":      listDRoles,
 		"dadd":       addDRole,
 		"ddelete":    deleteDRole,
@@ -62,19 +65,75 @@ func (c *Command) Exec(ctx context.Context, req *proto.ExecRequest, rsp *proto.E
 func help(ctx context.Context, req *proto.ExecRequest) string {
 	var buffer bytes.Buffer
 
-	buffer.WriteString("Usage: !admin <subcommand> <arguments>\n")
+	buffer.WriteString("Usage: !role <subcommand> <arguments>\n")
 	buffer.WriteString("\nSubcommands:\n")
 	buffer.WriteString("\tlist: Lists all roles\n")
 	buffer.WriteString("\tadd <role name> <chat service name>: Add Role\n")
 	buffer.WriteString("\tdelete <role name>: Delete Role\n")
-	buffer.WriteString("\tdlist: Get roles list from Discord, not Chremoas\n")
+	buffer.WriteString("\tdebug: Debug commands\n")
 	buffer.WriteString("\thelp: This text\n")
+
+	return fmt.Sprintf("```%s```", buffer.String())
+}
+
+func syncRole(ctx context.Context, req *proto.ExecRequest) string {
+	var buffer bytes.Buffer
+	var matchSpace = regexp.MustCompile(`\s`)
+
+	//listDRoles(ctx, req)
+	discordClient := clientFactory.NewDiscordGatewayClient()
+	discordRoles, err := discordClient.GetAllRoles(ctx, &discord.GuildObjectRequest{})
+
+	if err != nil {
+		buffer.WriteString(err.Error())
+		return fmt.Sprintf("```%s```", buffer.String())
+	}
+
+	//listRoles(ctx, req)
+	chremoasClient := clientFactory.NewEntityQueryClient()
+	chremoasRoles, err := chremoasClient.GetRoles(ctx, &uauthsvc.EntityQueryRequest{})
+
+	if err != nil {
+		buffer.WriteString(err.Error())
+		return fmt.Sprintf("```%s```", buffer.String())
+	}
+
+	for dr := range discordRoles.Roles {
+		chremoasClient := clientFactory.NewEntityAdminClient()
+
+		output, err := chremoasClient.RoleUpdate(ctx, &uauthsvc.RoleAdminRequest{
+			Role:      &uauthsvc.Role{ChatServiceGroup: discordRoles.Roles[dr].Name, RoleName: matchSpace.ReplaceAllString(discordRoles.Roles[dr].Name, "_")},
+			Operation: uauthsvc.EntityOperation_ADD_OR_UPDATE,
+		})
+
+		if err != nil {
+			fmt.Printf("Error: %+v\n", err)
+			buffer.WriteString(err.Error()+"\n")
+		} else {
+			fmt.Printf("Output: %+v\n", output)
+			buffer.WriteString(output.String()+"\n")
+		}
+	}
+
+	for cr := range chremoasRoles.List {
+		discordClient := clientFactory.NewDiscordGatewayClient()
+		output, err := discordClient.CreateRole(ctx, &discord.CreateRoleRequest{Name: chremoasRoles.List[cr].ChatServiceGroup})
+
+		if err != nil {
+			fmt.Printf("Error: %+v\n", err)
+			buffer.WriteString(err.Error()+"\n")
+		} else {
+			fmt.Printf("Output: %+v\n", output)
+			buffer.WriteString(output.String()+"\n")
+		}
+	}
 
 	return fmt.Sprintf("```%s```", buffer.String())
 }
 
 func addRole(ctx context.Context, req *proto.ExecRequest) string {
 	var buffer bytes.Buffer
+
 	client := clientFactory.NewEntityAdminClient()
 	roleName := req.Args[2]
 	chatServiceGroup := strings.Join(req.Args[3:], " ")
