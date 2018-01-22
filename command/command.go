@@ -110,7 +110,6 @@ func syncRole(ctx context.Context, req *proto.ExecRequest) string {
 
 		if err != nil {
 			if !matchDBError.MatchString(err.Error()) {
-				fmt.Printf("Error: %+v\n", err)
 				buffer.WriteString(err.Error() + "\n")
 			}
 		} else {
@@ -124,7 +123,6 @@ func syncRole(ctx context.Context, req *proto.ExecRequest) string {
 
 		if err != nil {
 			if !matchDiscordError.MatchString(err.Error()) {
-				fmt.Printf("Error: %+v\n", err)
 				buffer.WriteString(err.Error() + "\n")
 			}
 		} else {
