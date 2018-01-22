@@ -79,6 +79,8 @@ func help(ctx context.Context, req *proto.ExecRequest) string {
 func syncRole(ctx context.Context, req *proto.ExecRequest) string {
 	var buffer bytes.Buffer
 	var matchSpace = regexp.MustCompile(`\s`)
+	var matchDBError = regexp.MustCompile(`^Error 1062:`)
+	var matchDiscordError = regexp.MustCompile(`^The role '.*' already exists$`)
 
 	//listDRoles(ctx, req)
 	discordClient := clientFactory.NewDiscordGatewayClient()
@@ -107,11 +109,12 @@ func syncRole(ctx context.Context, req *proto.ExecRequest) string {
 		})
 
 		if err != nil {
-			fmt.Printf("Error: %+v\n", err)
-			buffer.WriteString(err.Error()+"\n")
+			if !matchDBError.MatchString(err.Error()) {
+				fmt.Printf("Error: %+v\n", err)
+				buffer.WriteString(err.Error() + "\n")
+			}
 		} else {
-			fmt.Printf("Output: %+v\n", output)
-			buffer.WriteString(output.String()+"\n")
+			buffer.WriteString(output.String() + "\n")
 		}
 	}
 
@@ -120,12 +123,17 @@ func syncRole(ctx context.Context, req *proto.ExecRequest) string {
 		output, err := discordClient.CreateRole(ctx, &discord.CreateRoleRequest{Name: chremoasRoles.List[cr].ChatServiceGroup})
 
 		if err != nil {
-			fmt.Printf("Error: %+v\n", err)
-			buffer.WriteString(err.Error()+"\n")
+			if !matchDiscordError.MatchString(err.Error()) {
+				fmt.Printf("Error: %+v\n", err)
+				buffer.WriteString(err.Error() + "\n")
+			}
 		} else {
-			fmt.Printf("Output: %+v\n", output)
-			buffer.WriteString(output.String()+"\n")
+			buffer.WriteString(output.String() + "\n")
 		}
+	}
+
+	if buffer.Len() == 0 {
+		buffer.WriteString("No roles needed to be synced")
 	}
 
 	return fmt.Sprintf("```%s```", buffer.String())
