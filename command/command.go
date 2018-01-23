@@ -167,10 +167,21 @@ func addRole(ctx context.Context, req *proto.ExecRequest) string {
 
 func deleteRole(ctx context.Context, req *proto.ExecRequest) string {
 	var buffer bytes.Buffer
-	client := clientFactory.NewEntityAdminClient()
+	var dRoleName string
+	chremoasClient := clientFactory.NewEntityAdminClient()
+	discordClient := clientFactory.NewDiscordGatewayClient()
 	roleName := req.Args[2]
 
-	output, err := client.RoleUpdate(ctx, &uauthsvc.RoleAdminRequest{
+	chremoasQueryClient := clientFactory.NewEntityQueryClient()
+	chremoasRoles, err := chremoasQueryClient.GetRoles(ctx, &uauthsvc.EntityQueryRequest{})
+
+	for cr := range chremoasRoles.List {
+		if chremoasRoles.List[cr].RoleName == roleName {
+			dRoleName = chremoasRoles.List[cr].ChatServiceGroup
+		}
+	}
+
+	_, err = chremoasClient.RoleUpdate(ctx, &uauthsvc.RoleAdminRequest{
 		Role:      &uauthsvc.Role{RoleName: roleName, ChatServiceGroup: "Doesn't matter"},
 		Operation: uauthsvc.EntityOperation_REMOVE,
 	})
@@ -178,7 +189,15 @@ func deleteRole(ctx context.Context, req *proto.ExecRequest) string {
 	if err != nil {
 		buffer.WriteString(err.Error())
 	} else {
-		buffer.WriteString(output.String())
+		buffer.WriteString(fmt.Sprintf("Deleting role from Chremoas: %s\n", roleName))
+	}
+
+	_, err = discordClient.DeleteRole(ctx, &discord.DeleteRoleRequest{Name: dRoleName})
+
+	if err != nil {
+		buffer.WriteString(err.Error())
+	} else {
+		buffer.WriteString(fmt.Sprintf("Deleting role from Discord: %s\n", dRoleName))
 	}
 
 	return fmt.Sprintf("```%s```", buffer.String())
