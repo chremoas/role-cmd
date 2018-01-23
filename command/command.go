@@ -103,7 +103,7 @@ func syncRole(ctx context.Context, req *proto.ExecRequest) string {
 	for dr := range discordRoles.Roles {
 		chremoasClient := clientFactory.NewEntityAdminClient()
 
-		output, err := chremoasClient.RoleUpdate(ctx, &uauthsvc.RoleAdminRequest{
+		_, err := chremoasClient.RoleUpdate(ctx, &uauthsvc.RoleAdminRequest{
 			Role:      &uauthsvc.Role{ChatServiceGroup: discordRoles.Roles[dr].Name, RoleName: matchSpace.ReplaceAllString(discordRoles.Roles[dr].Name, "_")},
 			Operation: uauthsvc.EntityOperation_ADD_OR_UPDATE,
 		})
@@ -113,20 +113,20 @@ func syncRole(ctx context.Context, req *proto.ExecRequest) string {
 				buffer.WriteString(err.Error() + "\n")
 			}
 		} else {
-			buffer.WriteString(output.String() + "\n")
+			buffer.WriteString(fmt.Sprintf("Syncing role '%s' from Discord to Chremoas\n", discordRoles.Roles[dr].Name))
 		}
 	}
 
 	for cr := range chremoasRoles.List {
 		discordClient := clientFactory.NewDiscordGatewayClient()
-		output, err := discordClient.CreateRole(ctx, &discord.CreateRoleRequest{Name: chremoasRoles.List[cr].ChatServiceGroup})
+		_, err := discordClient.CreateRole(ctx, &discord.CreateRoleRequest{Name: chremoasRoles.List[cr].ChatServiceGroup})
 
 		if err != nil {
 			if !matchDiscordError.MatchString(err.Error()) {
 				buffer.WriteString(err.Error() + "\n")
 			}
 		} else {
-			buffer.WriteString(output.String() + "\n")
+			buffer.WriteString(fmt.Sprintf("Syncing role '%s' from Chremoas to Discord\n", chremoasRoles.List[cr].ChatServiceGroup))
 		}
 	}
 
