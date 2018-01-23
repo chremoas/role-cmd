@@ -140,7 +140,8 @@ func syncRole(ctx context.Context, req *proto.ExecRequest) string {
 func addRole(ctx context.Context, req *proto.ExecRequest) string {
 	var buffer bytes.Buffer
 
-	client := clientFactory.NewEntityAdminClient()
+	chremoasClient := clientFactory.NewEntityAdminClient()
+	discordClient := clientFactory.NewDiscordGatewayClient()
 	roleName := req.Args[2]
 	chatServiceGroup := strings.Join(req.Args[3:], " ")
 
@@ -151,7 +152,7 @@ func addRole(ctx context.Context, req *proto.ExecRequest) string {
 		chatServiceGroup = chatServiceGroup[:len(chatServiceGroup)-1]
 	}
 
-	output, err := client.RoleUpdate(ctx, &uauthsvc.RoleAdminRequest{
+	_, err := chremoasClient.RoleUpdate(ctx, &uauthsvc.RoleAdminRequest{
 		Role:      &uauthsvc.Role{RoleName: roleName, ChatServiceGroup: chatServiceGroup},
 		Operation: uauthsvc.EntityOperation_ADD_OR_UPDATE,
 	})
@@ -159,7 +160,15 @@ func addRole(ctx context.Context, req *proto.ExecRequest) string {
 	if err != nil {
 		buffer.WriteString(err.Error())
 	} else {
-		buffer.WriteString(output.String())
+		buffer.WriteString(fmt.Sprintf("Adding role '%s' to Chremoas\n", chatServiceGroup))
+	}
+
+	_, err = discordClient.CreateRole(ctx, &discord.CreateRoleRequest{Name: chatServiceGroup})
+
+	if err != nil {
+		buffer.WriteString(err.Error())
+	} else {
+		buffer.WriteString(fmt.Sprintf("Adding role '%s' to Discord\n", chatServiceGroup))
 	}
 
 	return fmt.Sprintf("```%s```", buffer.String())
