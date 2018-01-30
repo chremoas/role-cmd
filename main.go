@@ -27,6 +27,7 @@ func main() {
 func initialize(config *config.Configuration) error {
 	clientFactory := clientFactory{
 		authSrv:        config.LookupService("srv", "auth"),
+		roleSrv:        config.LookupService("srv", "role"),
 		discordGateway: config.LookupService("gateway", "discord"),
 		client:         service.Client()}
 
@@ -41,6 +42,7 @@ func initialize(config *config.Configuration) error {
 
 type clientFactory struct {
 	authSrv        string
+	roleSrv        string
 	discordGateway string
 	client         client.Client
 }
