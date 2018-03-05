@@ -71,8 +71,10 @@ func help(ctx context.Context, req *proto.ExecRequest) string {
 
 func syncRole(ctx context.Context, req *proto.ExecRequest) string {
 	var buffer bytes.Buffer
-	rolesClient := clientFactory.NewRoleClient()
+	var fromDiscord []string
+	var fromChremoas []string
 
+	rolesClient := clientFactory.NewRoleClient()
 	syncedRoles, err := rolesClient.SyncRoles(ctx, &rolesrv.SyncRolesRequest{})
 
 	if err != nil {
@@ -80,7 +82,34 @@ func syncRole(ctx context.Context, req *proto.ExecRequest) string {
 		return fmt.Sprintf("```%s```", buffer.String())
 	}
 
-	buffer.WriteString(syncedRoles.String())
+	if len(syncedRoles.Roles) == 0 {
+		return "```No roles to sync```"
+	}
+
+	for role := range syncedRoles.Roles {
+		if syncedRoles.Roles[role].Source == "Discord" {
+			fromDiscord = append(fromDiscord, syncedRoles.Roles[role].Name)
+		} else if syncedRoles.Roles[role].Source == "Chremoas" {
+			fromChremoas = append(fromChremoas, syncedRoles.Roles[role].Name)
+		} else {
+			// WTF
+			return "```WTF. Seriously.```"
+		}
+	}
+
+	if len(fromDiscord) != 0 {
+		buffer.WriteString("From Discord:\n")
+		for fd := range fromDiscord {
+			buffer.WriteString(fmt.Sprintf("\t%s\n", fromDiscord[fd]))
+		}
+	}
+
+	if len(fromChremoas) != 0 {
+		buffer.WriteString("From Chremoas:\n")
+		for fd := range fromChremoas {
+			buffer.WriteString(fmt.Sprintf("\t%s\n", fromChremoas[fd]))
+		}
+	}
 
 	return fmt.Sprintf("```%s```", buffer.String())
 }
