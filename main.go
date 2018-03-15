@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	rolesvc "github.com/chremoas/role-srv/proto"
 	proto "github.com/chremoas/chremoas/proto"
 	"github.com/chremoas/role-cmd/command"
+	rolesrv "github.com/chremoas/role-srv/proto"
+	permsrv "github.com/chremoas/perms-srv/proto"
 	"github.com/chremoas/services-common/config"
 	"github.com/micro/go-micro"
 	"github.com/micro/go-micro/client"
@@ -25,8 +26,9 @@ func main() {
 // This function is a callback from the config.NewService function.  Read those docs
 func initialize(config *config.Configuration) error {
 	clientFactory := clientFactory{
-		roleSrv:        config.LookupService("srv", "role"),
-		client:         service.Client()}
+		roleSrv:  config.LookupService("srv", "role"),
+		permsSrv: config.LookupService("srv", "perms"),
+		client:   service.Client()}
 
 	proto.RegisterCommandHandler(service.Server(),
 		command.NewCommand(name,
@@ -38,10 +40,19 @@ func initialize(config *config.Configuration) error {
 }
 
 type clientFactory struct {
-	roleSrv        string
-	client         client.Client
+	roleSrv  string
+	permsSrv string
+	client   client.Client
 }
 
-func (c clientFactory) NewRoleClient() rolesvc.RolesClient {
-	return rolesvc.NewRolesClient(c.roleSrv, c.client)
+func (c clientFactory) NewPermsClient() permsrv.PermissionsClient {
+	return permsrv.NewPermissionsClient(c.permsSrv, c.client)
+}
+
+func (c clientFactory) NewRoleClient() rolesrv.RolesClient {
+	return rolesrv.NewRolesClient(c.roleSrv, c.client)
+}
+
+func (c clientFactory) NewRuleClient() rolesrv.RulesClient {
+	return rolesrv.NewRulesClient(c.roleSrv, c.client)
 }
