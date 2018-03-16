@@ -8,6 +8,7 @@ import (
 	rolesrv "github.com/chremoas/role-srv/proto"
 	"golang.org/x/net/context"
 	"strings"
+	"errors"
 )
 
 type ClientFactory interface {
@@ -20,33 +21,33 @@ type ClientFactory interface {
 type command struct {
 	funcptr func(ctx context.Context, request *proto.ExecRequest) string
 	help    string
+	args    []string
 }
 
 var cmdName = "role"
 var commandList = map[string]command{
 	// Roles
-	"role_list":   {listRoles, "List all Roles"},
-	"role_add":    {addRole, "Add Role"},
-	"role_remove": {removeRole, "Delete role"},
-	"role_info":   {roleInfo, "Get Role Info"},
-	"role_keys":   {roleKeys, "Get valid role keys"},
-	"role_types":  {roleTypes, "Get valid role types"},
-	//"sync":            {syncRole, "Sync Roles to chat service"},
+	"role_list":   {listRoles, "List all Roles", []string{}},
+	"role_add":    {addRole, "Add Role", []string{}},
+	"role_remove": {removeRole, "Delete role", []string{}},
+	"role_info":   {roleInfo, "Get Role Info", []string{}},
+	"role_keys":   {roleKeys, "Get valid role keys", []string{}},
+	"role_types":  {roleTypes, "Get valid role types", []string{}},
+	//"sync":            {syncRole, "Sync Roles to chat service", []string{}},
 
 	// Rules
-	"rule_list":   {listRules, "List all Rules"},
-	"rule_add":    {addRule, "Add Rule"},
-	"rule_remove": {removeRule, "Delete Rule"},
-	"rule_info":   {ruleInfo, "Get Rule Info"},
+	"rule_list":   {listRules, "List all Rules", []string{}},
+	"rule_add":    {addRule, "Add Rule", []string{"rule_name", "role_name", "filterA", "filterB"}},
+	"rule_remove": {removeRule, "Delete Rule", []string{}},
+	"rule_info":   {ruleInfo, "Get Rule Info", []string{}},
 
 	// Filters
-	"filter_list":   {listFilters, "List all Filters"},
-	"filter_add":    {addFilter, "Add Filter"},
-	"filter_remove": {removeFilter, "Delete Filter"},
-	"member_list":   {listMembers, "List all Filter Members"},
-	"member_add":    {addMember, "Add Filter Member"},
-	"member_remove": {removeMember, "Remove Filter Member"},
-	//"filter_info":   {filterInfo, "Get Rule Info"},
+	"filter_list":   {listFilters, "List all Filters", []string{}},
+	"filter_add":    {addFilter, "Add Filter", []string{}},
+	"filter_remove": {removeFilter, "Delete Filter", []string{}},
+	"member_list":   {listMembers, "List all Filter Members", []string{}},
+	"member_add":    {addMember, "Add Filter Member", []string{}},
+	"member_remove": {removeMember, "Remove Filter Member", []string{}},
 }
 
 var clientFactory ClientFactory
@@ -59,7 +60,7 @@ type Command struct {
 
 func (c *Command) Help(ctx context.Context, req *proto.HelpRequest, rsp *proto.HelpResponse) error {
 	rsp.Usage = c.name
-	rsp.Description = "Administrate Roles"
+	rsp.Description = "Administrate Roles, Rules and Filters"
 	return nil
 }
 
@@ -130,7 +131,29 @@ func roleTypes(ctx context.Context, req *proto.ExecRequest) string {
 	return sendSuccess(fmt.Sprintf("```%s```\n", buffer.String()))
 }
 
+//
+// Damn, this creates an initialization loop. Will need to figure out a better way to do this.
+//
+//func checkArgs(args []string, command string) error {
+//	var buffer bytes.Buffer
+//	argList := commandList[command].args
+//
+//	if len(args) < len(argList)+2 {
+//		buffer.WriteString(fmt.Sprintf("Usage: !%s %s", cmdName, command))
+//		for arg := range argList {
+//			buffer.WriteString(fmt.Sprintf(" <%s>", arg))
+//		}
+//		return errors.New(buffer.String())
+//	}
+//
+//	return nil
+//}
+
 func addRule(ctx context.Context, req *proto.ExecRequest) string {
+	//err := checkArgs(req.Args, "rule_add")
+	//if err != nil {
+	//	return sendError(err.Error())
+	//}
 	if len(req.Args) < 6 {
 		return sendError("Usage: !role rule_add <rule_name> <role_name> <filterA> <filterB>")
 	}
@@ -412,10 +435,6 @@ func roleInfo(ctx context.Context, req *proto.ExecRequest) string {
 		info.ShortName, info.Type, info.Name, info.Color, info.Hoist, info.Position, info.Permissions, info.Managed, info.Mentionable)
 }
 
-//"member_list":   {listMembers, "List all Filter Members"},
-//"member_add":    {addMember, "Add Filter Member"},
-//"member_remove": {removeMember, "Remove Filter Member"},
-
 func listMembers(ctx context.Context, req *proto.ExecRequest) string {
 	var buffer bytes.Buffer
 	if len(req.Args) != 3 {
@@ -497,6 +516,7 @@ func removeMember(ctx context.Context, req *proto.ExecRequest) string {
 
 	return sendSuccess(fmt.Sprintf("Removed '%s' from '%s'\n", user, filter))
 }
+
 //func syncRole(ctx context.Context, req *proto.ExecRequest) string {
 //	var buffer bytes.Buffer
 //	var fromDiscord []string
