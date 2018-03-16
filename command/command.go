@@ -14,6 +14,7 @@ type ClientFactory interface {
 	NewPermsClient() permsrv.PermissionsClient
 	NewRoleClient() rolesrv.RolesClient
 	NewRuleClient() rolesrv.RulesClient
+	NewFilterClient() rolesrv.FiltersClient
 }
 
 type command struct {
@@ -23,15 +24,29 @@ type command struct {
 
 var cmdName = "role"
 var commandList = map[string]command{
-	"notDefined": {notDefined, ""},
-	//"role_list":       {listRoles, "List all Roles"},
-	//"role_add":        {addRole, "Add Role"},
-	//"role_remove":     {removeRole, "Delete role"},
+	// Roles
+	"role_list":   {listRoles, "List all Roles"},
+	"role_add":    {addRole, "Add Role"},
+	"role_remove": {removeRole, "Delete role"},
+	"role_info":   {roleInfo, "Get Role Info"},
+	"role_keys":   {roleKeys, "Get valid role keys"},
+	"role_types":  {roleTypes, "Get valid role types"},
+	//"sync":            {syncRole, "Sync Roles to chat service"},
+
+	// Rules
 	"rule_list":   {listRules, "List all Rules"},
 	"rule_add":    {addRule, "Add Rule"},
 	"rule_remove": {removeRule, "Delete Rule"},
 	"rule_info":   {ruleInfo, "Get Rule Info"},
-	//"sync":            {syncRole, "Sync Roles to chat service"},
+
+	// Filters
+	"filter_list":   {listFilters, "List all Filters"},
+	"filter_add":    {addFilter, "Add Filter"},
+	"filter_remove": {removeFilter, "Delete Filter"},
+	"member_list":   {listMembers, "List all Filter Members"},
+	"member_add":    {addMember, "Add Filter Member"},
+	"member_remove": {removeMember, "Remove Filter Member"},
+	//"filter_info":   {filterInfo, "Get Rule Info"},
 }
 
 var clientFactory ClientFactory
@@ -81,6 +96,40 @@ func help(ctx context.Context, req *proto.ExecRequest) string {
 	return fmt.Sprintf("```%s```", buffer.String())
 }
 
+func roleKeys(ctx context.Context, req *proto.ExecRequest) string {
+	var buffer bytes.Buffer
+
+	roleClient := clientFactory.NewRoleClient()
+	keys, err := roleClient.GetRoleKeys(ctx, &rolesrv.NilMessage{})
+	if err != nil {
+		return sendFatal(err.Error())
+	}
+
+	buffer.WriteString("Keys:\n")
+	for key := range keys.Value {
+		buffer.WriteString(fmt.Sprintf("\t%s\n", keys.Value[key]))
+	}
+
+	return sendSuccess(fmt.Sprintf("```%s```\n", buffer.String()))
+}
+
+func roleTypes(ctx context.Context, req *proto.ExecRequest) string {
+	var buffer bytes.Buffer
+
+	roleClient := clientFactory.NewRoleClient()
+	keys, err := roleClient.GetRoleTypes(ctx, &rolesrv.NilMessage{})
+	if err != nil {
+		return sendFatal(err.Error())
+	}
+
+	buffer.WriteString("Types:\n")
+	for key := range keys.Value {
+		buffer.WriteString(fmt.Sprintf("\t%s\n", keys.Value[key]))
+	}
+
+	return sendSuccess(fmt.Sprintf("```%s```\n", buffer.String()))
+}
+
 func addRule(ctx context.Context, req *proto.ExecRequest) string {
 	if len(req.Args) < 6 {
 		return sendError("Usage: !role rule_add <rule_name> <role_name> <filterA> <filterB>")
@@ -109,6 +158,75 @@ func addRule(ctx context.Context, req *proto.ExecRequest) string {
 	return sendSuccess(fmt.Sprintf("Added: %s\n", name))
 }
 
+func addRole(ctx context.Context, req *proto.ExecRequest) string {
+	if len(req.Args) < 5 {
+		return sendError("Usage: !role role_add <role_short_name> <role_type> <role_name>")
+	}
+
+	roleShortName := req.Args[2]
+	roleType := req.Args[3]
+	roleName := strings.Join(req.Args[4:], " ")
+
+	if len(roleName) > 0 && roleName[0] == '"' {
+		roleName = roleName[1:]
+	}
+
+	if len(roleName) > 0 && roleName[len(roleName)-1] == '"' {
+		roleName = roleName[:len(roleName)-1]
+	}
+
+	canPerform, err := canPerform(ctx, req, []string{"role_admins"})
+	if err != nil {
+		return sendFatal(err.Error())
+	}
+
+	if !canPerform {
+		return sendError("User doesn't have permission to this command")
+	}
+
+	roleClient := clientFactory.NewRoleClient()
+	_, err = roleClient.AddRole(ctx, &rolesrv.Role{ShortName: roleShortName, Type: roleType, Name: roleName})
+	if err != nil {
+		return sendFatal(err.Error())
+	}
+
+	return sendSuccess(fmt.Sprintf("Added: %s\n", roleShortName))
+}
+
+func addFilter(ctx context.Context, req *proto.ExecRequest) string {
+	if len(req.Args) < 4 {
+		return sendError("Usage: !role filter_add <filter_name> <filter_description>")
+	}
+
+	filterName := req.Args[2]
+	filterDescription := strings.Join(req.Args[3:], " ")
+
+	if len(filterDescription) > 0 && filterDescription[0] == '"' {
+		filterDescription = filterDescription[1:]
+	}
+
+	if len(filterDescription) > 0 && filterDescription[len(filterDescription)-1] == '"' {
+		filterDescription = filterDescription[:len(filterDescription)-1]
+	}
+
+	canPerform, err := canPerform(ctx, req, []string{"role_admins"})
+	if err != nil {
+		return sendFatal(err.Error())
+	}
+
+	if !canPerform {
+		return sendError("User doesn't have permission to this command")
+	}
+
+	filterClient := clientFactory.NewFilterClient()
+	_, err = filterClient.AddFilter(ctx, &rolesrv.Filter{Name: filterName, Description: filterDescription})
+	if err != nil {
+		return sendFatal(err.Error())
+	}
+
+	return sendSuccess(fmt.Sprintf("Added: %s\n", filterName))
+}
+
 func listRules(ctx context.Context, req *proto.ExecRequest) string {
 	var buffer bytes.Buffer
 	ruleClient := clientFactory.NewRuleClient()
@@ -118,9 +236,55 @@ func listRules(ctx context.Context, req *proto.ExecRequest) string {
 		return sendFatal(err.Error())
 	}
 
+	if len(rules.Rules) == 0 {
+		return sendError("No Rules\n")
+	}
+
 	buffer.WriteString("Rules:\n")
 	for rule := range rules.Rules {
 		buffer.WriteString(fmt.Sprintf("\t%s\n", rules.Rules[rule].Name))
+	}
+
+	return fmt.Sprintf("```%s```", buffer.String())
+}
+
+func listRoles(ctx context.Context, req *proto.ExecRequest) string {
+	var buffer bytes.Buffer
+	roleClient := clientFactory.NewRoleClient()
+	roles, err := roleClient.GetRoles(ctx, &rolesrv.NilMessage{})
+
+	if err != nil {
+		return sendFatal(err.Error())
+	}
+
+	if len(roles.Roles) == 0 {
+		return sendError("No Roles\n")
+	}
+
+	buffer.WriteString("Roles:\n")
+	for role := range roles.Roles {
+		buffer.WriteString(fmt.Sprintf("\t%s\n", roles.Roles[role].Name))
+	}
+
+	return fmt.Sprintf("```%s```", buffer.String())
+}
+
+func listFilters(ctx context.Context, req *proto.ExecRequest) string {
+	var buffer bytes.Buffer
+	filterClient := clientFactory.NewFilterClient()
+	filters, err := filterClient.GetFilters(ctx, &rolesrv.NilMessage{})
+
+	if err != nil {
+		return sendFatal(err.Error())
+	}
+
+	if len(filters.FilterList) == 0 {
+		return sendError("No Filters\n")
+	}
+
+	buffer.WriteString("Filters:\n")
+	for filter := range filters.FilterList {
+		buffer.WriteString(fmt.Sprintf("\t%s: %s\n", filters.FilterList[filter].Name, filters.FilterList[filter].Description))
 	}
 
 	return fmt.Sprintf("```%s```", buffer.String())
@@ -143,6 +307,54 @@ func removeRule(ctx context.Context, req *proto.ExecRequest) string {
 	ruleClient := clientFactory.NewRuleClient()
 
 	_, err = ruleClient.RemoveRule(ctx, &rolesrv.Rule{Name: req.Args[2]})
+	if err != nil {
+		return sendFatal(err.Error())
+	}
+
+	return sendSuccess(fmt.Sprintf("Removed: %s\n", req.Args[2]))
+}
+
+func removeRole(ctx context.Context, req *proto.ExecRequest) string {
+	if len(req.Args) != 3 {
+		return sendError("Usage: !role role_remove <role_name>")
+	}
+
+	canPerform, err := canPerform(ctx, req, []string{"role_admins"})
+	if err != nil {
+		return sendFatal(err.Error())
+	}
+
+	if !canPerform {
+		return sendError("User doesn't have permission to this command")
+	}
+
+	roleClient := clientFactory.NewRoleClient()
+
+	_, err = roleClient.RemoveRole(ctx, &rolesrv.Role{ShortName: req.Args[2]})
+	if err != nil {
+		return sendFatal(err.Error())
+	}
+
+	return sendSuccess(fmt.Sprintf("Removed: %s\n", req.Args[2]))
+}
+
+func removeFilter(ctx context.Context, req *proto.ExecRequest) string {
+	if len(req.Args) != 3 {
+		return sendError("Usage: !role filter_remove <filter_name>")
+	}
+
+	canPerform, err := canPerform(ctx, req, []string{"role_admins"})
+	if err != nil {
+		return sendFatal(err.Error())
+	}
+
+	if !canPerform {
+		return sendError("User doesn't have permission to this command")
+	}
+
+	filterClient := clientFactory.NewFilterClient()
+
+	_, err = filterClient.RemoveFilter(ctx, &rolesrv.Filter{Name: req.Args[2]})
 	if err != nil {
 		return sendFatal(err.Error())
 	}
@@ -175,6 +387,116 @@ func ruleInfo(ctx context.Context, req *proto.ExecRequest) string {
 		info.Name, info.Rule.Role, info.Rule.FilterA, info.Rule.FilterB)
 }
 
+func roleInfo(ctx context.Context, req *proto.ExecRequest) string {
+	if len(req.Args) != 3 {
+		return sendError("Usage: !role role_info <role_name>")
+	}
+
+	canPerform, err := canPerform(ctx, req, []string{"role_admins"})
+	if err != nil {
+		return sendFatal(err.Error())
+	}
+
+	if !canPerform {
+		return sendError("User doesn't have permission to this command")
+	}
+
+	roleClient := clientFactory.NewRoleClient()
+
+	info, err := roleClient.GetRole(ctx, &rolesrv.Role{ShortName: req.Args[2]})
+	if err != nil {
+		return sendFatal(err.Error())
+	}
+
+	return fmt.Sprintf("```ShortName: %s\nType: %s\nName: %s\nColor: %d\nHoist: %t\nPosition: %d\nPermissions: %d\nManaged: %t\nMentionable: %t\n```",
+		info.ShortName, info.Type, info.Name, info.Color, info.Hoist, info.Position, info.Permissions, info.Managed, info.Mentionable)
+}
+
+//"member_list":   {listMembers, "List all Filter Members"},
+//"member_add":    {addMember, "Add Filter Member"},
+//"member_remove": {removeMember, "Remove Filter Member"},
+
+func listMembers(ctx context.Context, req *proto.ExecRequest) string {
+	var buffer bytes.Buffer
+	if len(req.Args) != 3 {
+		return sendError("Usage: !role member_list <filter_name>")
+	}
+
+	filterClient := clientFactory.NewFilterClient()
+	members, err := filterClient.GetMembers(ctx, &rolesrv.Filter{Name: req.Args[2]})
+
+	if err != nil {
+		return sendFatal(err.Error())
+	}
+
+	if len(members.Members) == 0 {
+		return sendError("No members in filter")
+	}
+
+	buffer.WriteString("Filter Members:\n")
+	for member := range members.Members {
+		buffer.WriteString(fmt.Sprintf("\t%s\n", members.Members[member]))
+	}
+
+	return fmt.Sprintf("```%s```", buffer.String())
+}
+
+func addMember(ctx context.Context, req *proto.ExecRequest) string {
+	if len(req.Args) < 4 {
+		return sendError("Usage: !role member_add <user> <filter>")
+	}
+
+	tmp := req.Args[2]
+	user := tmp[2 : len(tmp)-1]
+	filter := req.Args[3]
+
+	canPerform, err := canPerform(ctx, req, []string{"role_admins"})
+	if err != nil {
+		return sendFatal(err.Error())
+	}
+
+	if !canPerform {
+		return sendError("User doesn't have permission to this command")
+	}
+
+	filterClient := clientFactory.NewFilterClient()
+
+	_, err = filterClient.AddMembers(ctx,
+		&rolesrv.Members{Name: []string{user}, Filter: filter})
+	if err != nil {
+		return sendFatal(err.Error())
+	}
+
+	return sendSuccess(fmt.Sprintf("Added '%s' to '%s'\n", user, filter))
+}
+
+func removeMember(ctx context.Context, req *proto.ExecRequest) string {
+	if len(req.Args) < 4 {
+		return sendError("Usage: !role remove_member <user> <filter>")
+	}
+
+	canPerform, err := canPerform(ctx, req, []string{"role_admins"})
+	if err != nil {
+		return sendFatal(err.Error())
+	}
+
+	if !canPerform {
+		return sendError("User doesn't have permission to this command")
+	}
+
+	tmp := req.Args[2]
+	user := tmp[2 : len(tmp)-1]
+	filter := req.Args[3]
+
+	filterClient := clientFactory.NewFilterClient()
+	_, err = filterClient.RemoveMembers(ctx,
+		&rolesrv.Members{Name: []string{user}, Filter: filter})
+	if err != nil {
+		return sendFatal(err.Error())
+	}
+
+	return sendSuccess(fmt.Sprintf("Removed '%s' from '%s'\n", user, filter))
+}
 //func syncRole(ctx context.Context, req *proto.ExecRequest) string {
 //	var buffer bytes.Buffer
 //	var fromDiscord []string
