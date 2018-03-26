@@ -8,7 +8,6 @@ import (
 	rolesrv "github.com/chremoas/role-srv/proto"
 	"golang.org/x/net/context"
 	"strings"
-	"errors"
 )
 
 type ClientFactory interface {
@@ -26,6 +25,8 @@ type command struct {
 
 var cmdName = "role"
 var commandList = map[string]command{
+	"notDefined": {notDefined, "", []string{}},
+
 	// Roles
 	"role_list":   {listRoles, "List all Roles", []string{}},
 	"role_add":    {addRole, "Add Role", []string{}},
@@ -33,7 +34,7 @@ var commandList = map[string]command{
 	"role_info":   {roleInfo, "Get Role Info", []string{}},
 	"role_keys":   {roleKeys, "Get valid role keys", []string{}},
 	"role_types":  {roleTypes, "Get valid role types", []string{}},
-	//"sync":            {syncRole, "Sync Roles to chat service", []string{}},
+	"role_sync":   {syncRoles, "Sync Roles to chat service", []string{}},
 
 	// Rules
 	"rule_list":   {listRules, "List all Rules", []string{}},
@@ -517,7 +518,17 @@ func removeMember(ctx context.Context, req *proto.ExecRequest) string {
 	return sendSuccess(fmt.Sprintf("Removed '%s' from '%s'\n", user, filter))
 }
 
-//func syncRole(ctx context.Context, req *proto.ExecRequest) string {
+func syncRoles(ctx context.Context, req *proto.ExecRequest) string {
+	roleClient := clientFactory.NewRoleClient()
+	_, err := roleClient.SyncRoles(ctx, &rolesrv.NilMessage{})
+
+	if err != nil {
+		return sendFatal(err.Error())
+	}
+
+	return "I'm not sending anything back yet, nevermind."
+}
+
 //	var buffer bytes.Buffer
 //	var fromDiscord []string
 //	var fromChremoas []string
