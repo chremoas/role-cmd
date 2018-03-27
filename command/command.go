@@ -519,17 +519,35 @@ func removeMember(ctx context.Context, req *proto.ExecRequest) string {
 }
 
 func syncRoles(ctx context.Context, req *proto.ExecRequest) string {
+	var buffer bytes.Buffer
 	roleClient := clientFactory.NewRoleClient()
-	_, err := roleClient.SyncRoles(ctx, &rolesrv.NilMessage{})
+	response, err := roleClient.SyncRoles(ctx, &rolesrv.NilMessage{})
 
 	if err != nil {
 		return sendFatal(err.Error())
 	}
 
-	return "I'm not sending anything back yet, nevermind."
+	if len(response.AddedRoles) == 0 {
+		buffer.WriteString("No roles to add")
+	} else {
+		buffer.WriteString("Adding:\n")
+		for r := range response.AddedRoles {
+			buffer.WriteString(fmt.Sprintf("\t%s\n", response.AddedRoles[r]))
+		}
+	}
+
+	if len(response.RemovedRoles) == 0 {
+		buffer.WriteString("\nNo roles to remove")
+	} else {
+		buffer.WriteString("\nRemoving:\n")
+		for r := range response.RemovedRoles {
+			buffer.WriteString(fmt.Sprintf("\t%s\n", response.RemovedRoles[r]))
+		}
+	}
+
+	return fmt.Sprintf("```%s\n```", buffer.String())
 }
 
-//	var buffer bytes.Buffer
 //	var fromDiscord []string
 //	var fromChremoas []string
 //
