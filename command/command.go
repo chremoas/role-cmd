@@ -559,7 +559,7 @@ func syncMembers(ctx context.Context, req *proto.ExecRequest) string {
 	}
 
 	if len(response.Added) == 0 {
-		buffer.WriteString("No roles to add")
+		buffer.WriteString("No members to add")
 	} else {
 		buffer.WriteString("Adding:\n")
 		for r := range response.Added{
@@ -568,7 +568,7 @@ func syncMembers(ctx context.Context, req *proto.ExecRequest) string {
 	}
 
 	if len(response.Removed) == 0 {
-		buffer.WriteString("\nNo roles to remove")
+		buffer.WriteString("\nNo members to remove")
 	} else {
 		buffer.WriteString("\nRemoving:\n")
 		for r := range response.Removed{
