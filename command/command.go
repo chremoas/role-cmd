@@ -13,7 +13,6 @@ import (
 type ClientFactory interface {
 	NewPermsClient() permsrv.PermissionsClient
 	NewRoleClient() rolesrv.RolesClient
-	NewRuleClient() rolesrv.RulesClient
 	NewFilterClient() rolesrv.FiltersClient
 }
 
@@ -35,12 +34,6 @@ var commandList = map[string]command{
 	"role_keys":   {roleKeys, "Get valid role keys", []string{}},
 	"role_types":  {roleTypes, "Get valid role types", []string{}},
 	"role_sync":   {syncRoles, "Sync Roles to chat service", []string{}},
-
-	// Rules
-	"rule_list":   {listRules, "List all Rules", []string{}},
-	"rule_add":    {addRule, "Add Rule", []string{"rule_name", "role_name", "filterA", "filterB"}},
-	"rule_remove": {removeRule, "Delete Rule", []string{}},
-	"rule_info":   {ruleInfo, "Get Rule Info", []string{}},
 
 	// Filters
 	"filter_list":   {listFilters, "List all Filters", []string{}},
@@ -151,46 +144,16 @@ func roleTypes(ctx context.Context, req *proto.ExecRequest) string {
 //	return nil
 //}
 
-func addRule(ctx context.Context, req *proto.ExecRequest) string {
-	//err := checkArgs(req.Args, "rule_add")
-	//if err != nil {
-	//	return sendError(err.Error())
-	//}
-	if len(req.Args) < 6 {
-		return sendError("Usage: !role rule_add <rule_name> <role_name> <filterA> <filterB>")
-	}
-
-	name := req.Args[2]
-	role := req.Args[3]
-	filterA := req.Args[4]
-	filterB := req.Args[5]
-
-	canPerform, err := canPerform(ctx, req, []string{"role_admins"})
-	if err != nil {
-		return sendFatal(err.Error())
-	}
-
-	if !canPerform {
-		return sendError("User doesn't have permission to this command")
-	}
-
-	ruleClient := clientFactory.NewRuleClient()
-	_, err = ruleClient.AddRule(ctx, &rolesrv.Rule{Name: name, Rule: &rolesrv.RuleInfo{Role: role, FilterA: filterA, FilterB: filterB}})
-	if err != nil {
-		return sendFatal(err.Error())
-	}
-
-	return sendSuccess(fmt.Sprintf("Added: %s\n", name))
-}
-
 func addRole(ctx context.Context, req *proto.ExecRequest) string {
-	if len(req.Args) < 5 {
-		return sendError("Usage: !role role_add <role_short_name> <role_type> <role_name>")
+	if len(req.Args) < 7 {
+		return sendError("Usage: !role role_add <role_short_name> <role_type> <filterA> <filterB> <role_name>")
 	}
 
 	roleShortName := req.Args[2]
 	roleType := req.Args[3]
-	roleName := strings.Join(req.Args[4:], " ")
+	filterA := req.Args[4]
+	filterB := req.Args[5]
+	roleName := strings.Join(req.Args[6:], " ")
 
 	if len(roleName) > 0 && roleName[0] == '"' {
 		roleName = roleName[1:]
@@ -210,7 +173,15 @@ func addRole(ctx context.Context, req *proto.ExecRequest) string {
 	}
 
 	roleClient := clientFactory.NewRoleClient()
-	_, err = roleClient.AddRole(ctx, &rolesrv.Role{ShortName: roleShortName, Type: roleType, Name: roleName})
+	_, err = roleClient.AddRole(ctx,
+		&rolesrv.Role{
+			ShortName: roleShortName,
+			Type:      roleType,
+			Name:      roleName,
+			FilterA:   filterA,
+			FilterB:   filterB,
+		})
+
 	if err != nil {
 		return sendFatal(err.Error())
 	}
@@ -250,27 +221,6 @@ func addFilter(ctx context.Context, req *proto.ExecRequest) string {
 	}
 
 	return sendSuccess(fmt.Sprintf("Added: %s\n", filterName))
-}
-
-func listRules(ctx context.Context, req *proto.ExecRequest) string {
-	var buffer bytes.Buffer
-	ruleClient := clientFactory.NewRuleClient()
-	rules, err := ruleClient.GetRules(ctx, &rolesrv.NilMessage{})
-
-	if err != nil {
-		return sendFatal(err.Error())
-	}
-
-	if len(rules.Rules) == 0 {
-		return sendError("No Rules\n")
-	}
-
-	buffer.WriteString("Rules:\n")
-	for rule := range rules.Rules {
-		buffer.WriteString(fmt.Sprintf("\t%s\n", rules.Rules[rule].Name))
-	}
-
-	return fmt.Sprintf("```%s```", buffer.String())
 }
 
 func listRoles(ctx context.Context, req *proto.ExecRequest) string {
@@ -313,30 +263,6 @@ func listFilters(ctx context.Context, req *proto.ExecRequest) string {
 	}
 
 	return fmt.Sprintf("```%s```", buffer.String())
-}
-
-func removeRule(ctx context.Context, req *proto.ExecRequest) string {
-	if len(req.Args) != 3 {
-		return sendError("Usage: !role rule_remove <rule_name>")
-	}
-
-	canPerform, err := canPerform(ctx, req, []string{"role_admins"})
-	if err != nil {
-		return sendFatal(err.Error())
-	}
-
-	if !canPerform {
-		return sendError("User doesn't have permission to this command")
-	}
-
-	ruleClient := clientFactory.NewRuleClient()
-
-	_, err = ruleClient.RemoveRule(ctx, &rolesrv.Rule{Name: req.Args[2]})
-	if err != nil {
-		return sendFatal(err.Error())
-	}
-
-	return sendSuccess(fmt.Sprintf("Removed: %s\n", req.Args[2]))
 }
 
 func removeRole(ctx context.Context, req *proto.ExecRequest) string {
@@ -387,31 +313,6 @@ func removeFilter(ctx context.Context, req *proto.ExecRequest) string {
 	return sendSuccess(fmt.Sprintf("Removed: %s\n", req.Args[2]))
 }
 
-func ruleInfo(ctx context.Context, req *proto.ExecRequest) string {
-	if len(req.Args) != 3 {
-		return sendError("Usage: !role rule_info <rule_name>")
-	}
-
-	canPerform, err := canPerform(ctx, req, []string{"role_admins"})
-	if err != nil {
-		return sendFatal(err.Error())
-	}
-
-	if !canPerform {
-		return sendError("User doesn't have permission to this command")
-	}
-
-	ruleClient := clientFactory.NewRuleClient()
-
-	info, err := ruleClient.GetRule(ctx, &rolesrv.Rule{Name: req.Args[2]})
-	if err != nil {
-		return sendFatal(err.Error())
-	}
-
-	return fmt.Sprintf("```Name: %s\nRole: %s\nFilterA: %s\nFilterB: %s\n```",
-		info.Name, info.Rule.Role, info.Rule.FilterA, info.Rule.FilterB)
-}
-
 func roleInfo(ctx context.Context, req *proto.ExecRequest) string {
 	if len(req.Args) != 3 {
 		return sendError("Usage: !role role_info <role_name>")
@@ -433,8 +334,19 @@ func roleInfo(ctx context.Context, req *proto.ExecRequest) string {
 		return sendFatal(err.Error())
 	}
 
-	return fmt.Sprintf("```ShortName: %s\nType: %s\nName: %s\nColor: %d\nHoist: %t\nPosition: %d\nPermissions: %d\nManaged: %t\nMentionable: %t\n```",
-		info.ShortName, info.Type, info.Name, info.Color, info.Hoist, info.Position, info.Permissions, info.Managed, info.Mentionable)
+	return fmt.Sprintf("```ShortName: %s\nType: %s\nFilterA: %s\nFilterB: %s\nName: %s\nColor: %d\nHoist: %t\nPosition: %d\nPermissions: %d\nManaged: %t\nMentionable: %t\n```",
+		info.ShortName,
+		info.Type,
+		info.FilterA,
+		info.FilterB,
+		info.Name,
+		info.Color,
+		info.Hoist,
+		info.Position,
+		info.Permissions,
+		info.Managed,
+		info.Mentionable,
+	)
 }
 
 func listMembers(ctx context.Context, req *proto.ExecRequest) string {
@@ -541,7 +453,7 @@ func syncRoles(ctx context.Context, req *proto.ExecRequest) string {
 		buffer.WriteString("\nNo roles to remove")
 	} else {
 		buffer.WriteString("\nRemoving:\n")
-		for r := range response.Removed{
+		for r := range response.Removed {
 			buffer.WriteString(fmt.Sprintf("\t%s\n", response.Removed[r]))
 		}
 	}
@@ -562,7 +474,7 @@ func syncMembers(ctx context.Context, req *proto.ExecRequest) string {
 		buffer.WriteString("No members to add")
 	} else {
 		buffer.WriteString("Adding:\n")
-		for r := range response.Added{
+		for r := range response.Added {
 			buffer.WriteString(fmt.Sprintf("\t%s\n", response.Added[r]))
 		}
 	}
@@ -571,7 +483,7 @@ func syncMembers(ctx context.Context, req *proto.ExecRequest) string {
 		buffer.WriteString("\nNo members to remove")
 	} else {
 		buffer.WriteString("\nRemoving:\n")
-		for r := range response.Removed{
+		for r := range response.Removed {
 			buffer.WriteString(fmt.Sprintf("\t%s\n", response.Removed[r]))
 		}
 	}
