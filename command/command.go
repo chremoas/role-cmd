@@ -470,22 +470,22 @@ func syncMembers(ctx context.Context, req *proto.ExecRequest) string {
 		return sendFatal(err.Error())
 	}
 
-	if len(response.Added) == 0 {
-		buffer.WriteString("No members to add")
-	} else {
-		buffer.WriteString("Adding:\n")
-		for r := range response.Added {
-			buffer.WriteString(fmt.Sprintf("\t%s\n", response.Added[r]))
+	for r := range response.Results {
+		fmt.Printf("%+v\n", response.Results[r])
+		if response.Results[r].Action == rolesrv.MemberSyncAction_ADDED {
+			buffer.WriteString(fmt.Sprintf("Adding '%s' to '%s'\n", response.Results[r].User, response.Results[r].Role))
 		}
 	}
 
-	if len(response.Removed) == 0 {
-		buffer.WriteString("\nNo members to remove")
-	} else {
-		buffer.WriteString("\nRemoving:\n")
-		for r := range response.Removed {
-			buffer.WriteString(fmt.Sprintf("\t%s\n", response.Removed[r]))
+	for r := range response.Results {
+		fmt.Printf("%+v\n", response.Results[r])
+		if response.Results[r].Action == rolesrv.MemberSyncAction_REMOVED {
+			buffer.WriteString(fmt.Sprintf("Removing '%s' from '%s'\n", response.Results[r].User, response.Results[r].Role))
 		}
+	}
+
+	if buffer.Len() == 0 {
+		buffer.WriteString("No members to sync")
 	}
 
 	return fmt.Sprintf("```%s\n```", buffer.String())
