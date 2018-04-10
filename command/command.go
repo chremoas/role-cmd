@@ -13,7 +13,6 @@ import (
 type ClientFactory interface {
 	NewPermsClient() permsrv.PermissionsClient
 	NewRoleClient() rolesrv.RolesClient
-	NewFilterClient() rolesrv.FiltersClient
 }
 
 type command struct {
@@ -214,8 +213,8 @@ func addFilter(ctx context.Context, req *proto.ExecRequest) string {
 		return sendError("User doesn't have permission to this command")
 	}
 
-	filterClient := clientFactory.NewFilterClient()
-	_, err = filterClient.AddFilter(ctx, &rolesrv.Filter{Name: filterName, Description: filterDescription})
+	rolesClient := clientFactory.NewRoleClient()
+	_, err = rolesClient.AddFilter(ctx, &rolesrv.Filter{Name: filterName, Description: filterDescription})
 	if err != nil {
 		return sendFatal(err.Error())
 	}
@@ -246,8 +245,8 @@ func listRoles(ctx context.Context, req *proto.ExecRequest) string {
 
 func listFilters(ctx context.Context, req *proto.ExecRequest) string {
 	var buffer bytes.Buffer
-	filterClient := clientFactory.NewFilterClient()
-	filters, err := filterClient.GetFilters(ctx, &rolesrv.NilMessage{})
+	rolesClient := clientFactory.NewRoleClient()
+	filters, err := rolesClient.GetFilters(ctx, &rolesrv.NilMessage{})
 
 	if err != nil {
 		return sendFatal(err.Error())
@@ -303,9 +302,9 @@ func removeFilter(ctx context.Context, req *proto.ExecRequest) string {
 		return sendError("User doesn't have permission to this command")
 	}
 
-	filterClient := clientFactory.NewFilterClient()
+	rolesClient := clientFactory.NewRoleClient()
 
-	_, err = filterClient.RemoveFilter(ctx, &rolesrv.Filter{Name: req.Args[2]})
+	_, err = rolesClient.RemoveFilter(ctx, &rolesrv.Filter{Name: req.Args[2]})
 	if err != nil {
 		return sendFatal(err.Error())
 	}
@@ -355,8 +354,8 @@ func listMembers(ctx context.Context, req *proto.ExecRequest) string {
 		return sendError("Usage: !role member_list <filter_name>")
 	}
 
-	filterClient := clientFactory.NewFilterClient()
-	members, err := filterClient.GetMembers(ctx, &rolesrv.Filter{Name: req.Args[2]})
+	rolesClient := clientFactory.NewRoleClient()
+	members, err := rolesClient.GetMembers(ctx, &rolesrv.Filter{Name: req.Args[2]})
 
 	if err != nil {
 		return sendFatal(err.Error())
@@ -392,9 +391,9 @@ func addMember(ctx context.Context, req *proto.ExecRequest) string {
 		return sendError("User doesn't have permission to this command")
 	}
 
-	filterClient := clientFactory.NewFilterClient()
+	rolesClient := clientFactory.NewRoleClient()
 
-	_, err = filterClient.AddMembers(ctx,
+	_, err = rolesClient.AddMembers(ctx,
 		&rolesrv.Members{Name: []string{user}, Filter: filter})
 	if err != nil {
 		return sendFatal(err.Error())
@@ -421,8 +420,8 @@ func removeMember(ctx context.Context, req *proto.ExecRequest) string {
 	user := tmp[2 : len(tmp)-1]
 	filter := req.Args[3]
 
-	filterClient := clientFactory.NewFilterClient()
-	_, err = filterClient.RemoveMembers(ctx,
+	rolesClient := clientFactory.NewRoleClient()
+	_, err = rolesClient.RemoveMembers(ctx,
 		&rolesrv.Members{Name: []string{user}, Filter: filter})
 	if err != nil {
 		return sendFatal(err.Error())

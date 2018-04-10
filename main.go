@@ -52,7 +52,3 @@ func (c clientFactory) NewPermsClient() permsrv.PermissionsClient {
 func (c clientFactory) NewRoleClient() rolesrv.RolesClient {
 	return rolesrv.NewRolesClient(c.roleSrv, c.client)
 }
-
-func (c clientFactory) NewFilterClient() rolesrv.FiltersClient {
-	return rolesrv.NewFiltersClient(c.roleSrv, c.client)
-}
