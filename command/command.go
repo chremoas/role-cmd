@@ -461,33 +461,15 @@ func syncRoles(ctx context.Context, req *proto.ExecRequest) string {
 }
 
 func syncMembers(ctx context.Context, req *proto.ExecRequest) string {
-	var buffer bytes.Buffer
+	//var buffer bytes.Buffer
 	roleClient := clientFactory.NewRoleClient()
-	response, err := roleClient.SyncMembers(ctx, &rolesrv.NilMessage{})
+	_, err := roleClient.SyncMembers(ctx, &rolesrv.NilMessage{})
 
 	if err != nil {
 		return sendFatal(err.Error())
 	}
 
-	for r := range response.Results {
-		fmt.Printf("%+v\n", response.Results[r])
-		if response.Results[r].Action == rolesrv.MemberSyncAction_ADDED {
-			buffer.WriteString(fmt.Sprintf("Adding '%s' to '%s'\n", response.Results[r].User, response.Results[r].Role))
-		}
-	}
-
-	for r := range response.Results {
-		fmt.Printf("%+v\n", response.Results[r])
-		if response.Results[r].Action == rolesrv.MemberSyncAction_REMOVED {
-			buffer.WriteString(fmt.Sprintf("Removing '%s' from '%s'\n", response.Results[r].User, response.Results[r].Role))
-		}
-	}
-
-	if buffer.Len() == 0 {
-		buffer.WriteString("No members to sync")
-	}
-
-	return fmt.Sprintf("```%s\n```", buffer.String())
+	return sendSuccess("Done")
 }
 
 func notDefined(ctx context.Context, req *proto.ExecRequest) string {
