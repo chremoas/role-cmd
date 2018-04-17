@@ -174,6 +174,7 @@ func addRole(ctx context.Context, req *proto.ExecRequest) string {
 	roleClient := clientFactory.NewRoleClient()
 	_, err = roleClient.AddRole(ctx,
 		&rolesrv.Role{
+			Sig:       false,
 			ShortName: roleShortName,
 			Type:      roleType,
 			Name:      roleName,
@@ -224,6 +225,7 @@ func addFilter(ctx context.Context, req *proto.ExecRequest) string {
 
 func listRoles(ctx context.Context, req *proto.ExecRequest) string {
 	var buffer bytes.Buffer
+	var roleList = make(map[string]string)
 	roleClient := clientFactory.NewRoleClient()
 	roles, err := roleClient.GetRoles(ctx, &rolesrv.NilMessage{})
 
@@ -231,16 +233,19 @@ func listRoles(ctx context.Context, req *proto.ExecRequest) string {
 		return sendFatal(err.Error())
 	}
 
-	if len(roles.Roles) == 0 {
+	for role := range roles.Roles {
+		if !roles.Roles[role].Sig {
+			roleList[roles.Roles[role].ShortName] = roles.Roles[role].Name
+		}
+	}
+
+	if len(roleList) == 0 {
 		return sendError("No Roles\n")
 	}
 
 	buffer.WriteString("Roles:\n")
-	for role := range roles.Roles {
-		buffer.WriteString(fmt.Sprintf("\t%s: %s\n",
-			roles.Roles[role].ShortName,
-			roles.Roles[role].Name,
-		))
+	for role := range roleList {
+		buffer.WriteString(fmt.Sprintf("\t%s: %s\n", role, roleList[role]))
 	}
 
 	return fmt.Sprintf("```%s```", buffer.String())
