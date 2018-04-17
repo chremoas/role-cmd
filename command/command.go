@@ -237,7 +237,10 @@ func listRoles(ctx context.Context, req *proto.ExecRequest) string {
 
 	buffer.WriteString("Roles:\n")
 	for role := range roles.Roles {
-		buffer.WriteString(fmt.Sprintf("\t%s\n", roles.Roles[role].Name))
+		buffer.WriteString(fmt.Sprintf("\t%s: %s\n",
+			roles.Roles[role].ShortName,
+			roles.Roles[role].Name,
+		))
 	}
 
 	return fmt.Sprintf("```%s```", buffer.String())
