@@ -6,6 +6,7 @@ import (
 	proto "github.com/chremoas/chremoas/proto"
 	permsrv "github.com/chremoas/perms-srv/proto"
 	rolesrv "github.com/chremoas/role-srv/proto"
+	role "github.com/chremoas/services-common/roles"
 	"golang.org/x/net/context"
 	"strings"
 )
@@ -224,31 +225,8 @@ func addFilter(ctx context.Context, req *proto.ExecRequest) string {
 }
 
 func listRoles(ctx context.Context, req *proto.ExecRequest) string {
-	var buffer bytes.Buffer
-	var roleList = make(map[string]string)
 	roleClient := clientFactory.NewRoleClient()
-	roles, err := roleClient.GetRoles(ctx, &rolesrv.NilMessage{})
-
-	if err != nil {
-		return sendFatal(err.Error())
-	}
-
-	for role := range roles.Roles {
-		if !roles.Roles[role].Sig {
-			roleList[roles.Roles[role].ShortName] = roles.Roles[role].Name
-		}
-	}
-
-	if len(roleList) == 0 {
-		return sendError("No Roles\n")
-	}
-
-	buffer.WriteString("Roles:\n")
-	for role := range roleList {
-		buffer.WriteString(fmt.Sprintf("\t%s: %s\n", role, roleList[role]))
-	}
-
-	return fmt.Sprintf("```%s```", buffer.String())
+	return role.ListRoles(ctx, roleClient, false)
 }
 
 func listFilters(ctx context.Context, req *proto.ExecRequest) string {
