@@ -225,8 +225,7 @@ func addFilter(ctx context.Context, req *proto.ExecRequest) string {
 }
 
 func listRoles(ctx context.Context, req *proto.ExecRequest) string {
-	roleClient := clientFactory.NewRoleClient()
-	return role.ListRoles(ctx, roleClient, false)
+	return role.ListRoles(ctx, clientFactory.NewRoleClient(), false)
 }
 
 func listFilters(ctx context.Context, req *proto.ExecRequest) string {
