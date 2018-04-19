@@ -6,7 +6,8 @@ import (
 	proto "github.com/chremoas/chremoas/proto"
 	permsrv "github.com/chremoas/perms-srv/proto"
 	rolesrv "github.com/chremoas/role-srv/proto"
-	role "github.com/chremoas/services-common/roles"
+	crole "github.com/chremoas/services-common/roles"
+	common "github.com/chremoas/services-common/command"
 	"golang.org/x/net/context"
 	"strings"
 )
@@ -21,6 +22,8 @@ type command struct {
 	help    string
 	args    []string
 }
+
+var role crole.Roles
 
 var cmdName = "role"
 var commandList = map[string]command{
@@ -69,7 +72,7 @@ func (c *Command) Exec(ctx context.Context, req *proto.ExecRequest, rsp *proto.E
 		if ok {
 			response = f.funcptr(ctx, req)
 		} else {
-			response = sendError(fmt.Sprintf("Not a valid subcommand: %s", req.Args[1]))
+			response = common.SendError(fmt.Sprintf("Not a valid subcommand: %s", req.Args[1]))
 		}
 	}
 
@@ -98,7 +101,7 @@ func roleKeys(ctx context.Context, req *proto.ExecRequest) string {
 	roleClient := clientFactory.NewRoleClient()
 	keys, err := roleClient.GetRoleKeys(ctx, &rolesrv.NilMessage{})
 	if err != nil {
-		return sendFatal(err.Error())
+		return common.SendFatal(err.Error())
 	}
 
 	buffer.WriteString("Keys:\n")
@@ -106,7 +109,7 @@ func roleKeys(ctx context.Context, req *proto.ExecRequest) string {
 		buffer.WriteString(fmt.Sprintf("\t%s\n", keys.Value[key]))
 	}
 
-	return sendSuccess(fmt.Sprintf("```%s```\n", buffer.String()))
+	return common.SendSuccess(fmt.Sprintf("```%s```\n", buffer.String()))
 }
 
 func roleTypes(ctx context.Context, req *proto.ExecRequest) string {
@@ -115,7 +118,7 @@ func roleTypes(ctx context.Context, req *proto.ExecRequest) string {
 	roleClient := clientFactory.NewRoleClient()
 	keys, err := roleClient.GetRoleTypes(ctx, &rolesrv.NilMessage{})
 	if err != nil {
-		return sendFatal(err.Error())
+		return common.SendFatal(err.Error())
 	}
 
 	buffer.WriteString("Types:\n")
@@ -123,7 +126,7 @@ func roleTypes(ctx context.Context, req *proto.ExecRequest) string {
 		buffer.WriteString(fmt.Sprintf("\t%s\n", keys.Value[key]))
 	}
 
-	return sendSuccess(fmt.Sprintf("```%s```\n", buffer.String()))
+	return common.SendSuccess(fmt.Sprintf("```%s```\n", buffer.String()))
 }
 
 //
@@ -145,54 +148,24 @@ func roleTypes(ctx context.Context, req *proto.ExecRequest) string {
 //}
 
 func addRole(ctx context.Context, req *proto.ExecRequest) string {
-	if len(req.Args) < 7 {
-		return sendError("Usage: !role role_add <role_short_name> <role_type> <filterA> <filterB> <role_name>")
+	if len(req.Args) < 6 {
+		return common.SendError("Usage: !role role_add <role_short_name> <role_type> <filterA> <role_name>")
 	}
 
-	roleShortName := req.Args[2]
-	roleType := req.Args[3]
-	filterA := req.Args[4]
-	filterB := req.Args[5]
-	roleName := strings.Join(req.Args[6:], " ")
-
-	if len(roleName) > 0 && roleName[0] == '"' {
-		roleName = roleName[1:]
-	}
-
-	if len(roleName) > 0 && roleName[len(roleName)-1] == '"' {
-		roleName = roleName[:len(roleName)-1]
-	}
-
-	canPerform, err := canPerform(ctx, req, []string{"role_admins"})
-	if err != nil {
-		return sendFatal(err.Error())
-	}
-
-	if !canPerform {
-		return sendError("User doesn't have permission to this command")
-	}
-
-	roleClient := clientFactory.NewRoleClient()
-	_, err = roleClient.AddRole(ctx,
-		&rolesrv.Role{
-			Sig:       false,
-			ShortName: roleShortName,
-			Type:      roleType,
-			Name:      roleName,
-			FilterA:   filterA,
-			FilterB:   filterB,
-		})
-
-	if err != nil {
-		return sendFatal(err.Error())
-	}
-
-	return sendSuccess(fmt.Sprintf("Added: %s\n", roleShortName))
+	return role.AddRole(ctx,
+		req.Sender,
+		req.Args[2], // shortName
+		req.Args[3], // roleType
+		req.Args[4], // filterA
+		"wildcard", // filterB
+		strings.Join(req.Args[5:], " "), // roleName
+		false, // Is this a SIG?
+	)
 }
 
 func addFilter(ctx context.Context, req *proto.ExecRequest) string {
 	if len(req.Args) < 4 {
-		return sendError("Usage: !role filter_add <filter_name> <filter_description>")
+		return common.SendError("Usage: !role filter_add <filter_name> <filter_description>")
 	}
 
 	filterName := req.Args[2]
@@ -206,26 +179,26 @@ func addFilter(ctx context.Context, req *proto.ExecRequest) string {
 		filterDescription = filterDescription[:len(filterDescription)-1]
 	}
 
-	canPerform, err := canPerform(ctx, req, []string{"role_admins"})
+	canPerform, err := role.Permissions.CanPerform(ctx, req.Sender, []string{"role_admins"})
 	if err != nil {
-		return sendFatal(err.Error())
+		return common.SendFatal(err.Error())
 	}
 
 	if !canPerform {
-		return sendError("User doesn't have permission to this command")
+		return common.SendError("User doesn't have permission to this command")
 	}
 
 	rolesClient := clientFactory.NewRoleClient()
 	_, err = rolesClient.AddFilter(ctx, &rolesrv.Filter{Name: filterName, Description: filterDescription})
 	if err != nil {
-		return sendFatal(err.Error())
+		return common.SendFatal(err.Error())
 	}
 
-	return sendSuccess(fmt.Sprintf("Added: %s\n", filterName))
+	return common.SendSuccess(fmt.Sprintf("Added: %s\n", filterName))
 }
 
 func listRoles(ctx context.Context, req *proto.ExecRequest) string {
-	return role.ListRoles(ctx, clientFactory.NewRoleClient(), false)
+	return role.ListRoles(ctx, false)
 }
 
 func listFilters(ctx context.Context, req *proto.ExecRequest) string {
@@ -234,11 +207,11 @@ func listFilters(ctx context.Context, req *proto.ExecRequest) string {
 	filters, err := rolesClient.GetFilters(ctx, &rolesrv.NilMessage{})
 
 	if err != nil {
-		return sendFatal(err.Error())
+		return common.SendFatal(err.Error())
 	}
 
 	if len(filters.FilterList) == 0 {
-		return sendError("No Filters\n")
+		return common.SendError("No Filters\n")
 	}
 
 	buffer.WriteString("Filters:\n")
@@ -251,71 +224,71 @@ func listFilters(ctx context.Context, req *proto.ExecRequest) string {
 
 func removeRole(ctx context.Context, req *proto.ExecRequest) string {
 	if len(req.Args) != 3 {
-		return sendError("Usage: !role role_remove <role_name>")
+		return common.SendError("Usage: !role role_remove <role_name>")
 	}
 
-	canPerform, err := canPerform(ctx, req, []string{"role_admins"})
+	canPerform, err := role.Permissions.CanPerform(ctx, req.Sender, []string{"role_admins"})
 	if err != nil {
-		return sendFatal(err.Error())
+		return common.SendFatal(err.Error())
 	}
 
 	if !canPerform {
-		return sendError("User doesn't have permission to this command")
+		return common.SendError("User doesn't have permission to this command")
 	}
 
 	roleClient := clientFactory.NewRoleClient()
 
 	_, err = roleClient.RemoveRole(ctx, &rolesrv.Role{ShortName: req.Args[2]})
 	if err != nil {
-		return sendFatal(err.Error())
+		return common.SendFatal(err.Error())
 	}
 
-	return sendSuccess(fmt.Sprintf("Removed: %s\n", req.Args[2]))
+	return common.SendSuccess(fmt.Sprintf("Removed: %s\n", req.Args[2]))
 }
 
 func removeFilter(ctx context.Context, req *proto.ExecRequest) string {
 	if len(req.Args) != 3 {
-		return sendError("Usage: !role filter_remove <filter_name>")
+		return common.SendError("Usage: !role filter_remove <filter_name>")
 	}
 
-	canPerform, err := canPerform(ctx, req, []string{"role_admins"})
+	canPerform, err := role.Permissions.CanPerform(ctx, req.Sender, []string{"role_admins"})
 	if err != nil {
-		return sendFatal(err.Error())
+		return common.SendFatal(err.Error())
 	}
 
 	if !canPerform {
-		return sendError("User doesn't have permission to this command")
+		return common.SendError("User doesn't have permission to this command")
 	}
 
 	rolesClient := clientFactory.NewRoleClient()
 
 	_, err = rolesClient.RemoveFilter(ctx, &rolesrv.Filter{Name: req.Args[2]})
 	if err != nil {
-		return sendFatal(err.Error())
+		return common.SendFatal(err.Error())
 	}
 
-	return sendSuccess(fmt.Sprintf("Removed: %s\n", req.Args[2]))
+	return common.SendSuccess(fmt.Sprintf("Removed: %s\n", req.Args[2]))
 }
 
 func roleInfo(ctx context.Context, req *proto.ExecRequest) string {
 	if len(req.Args) != 3 {
-		return sendError("Usage: !role role_info <role_name>")
+		return common.SendError("Usage: !role role_info <role_name>")
 	}
 
-	canPerform, err := canPerform(ctx, req, []string{"role_admins"})
+	canPerform, err := role.Permissions.CanPerform(ctx, req.Sender, []string{"role_admins"})
 	if err != nil {
-		return sendFatal(err.Error())
+		return common.SendFatal(err.Error())
 	}
 
 	if !canPerform {
-		return sendError("User doesn't have permission to this command")
+		return common.SendError("User doesn't have permission to this command")
 	}
 
 	roleClient := clientFactory.NewRoleClient()
 
 	info, err := roleClient.GetRole(ctx, &rolesrv.Role{ShortName: req.Args[2]})
 	if err != nil {
-		return sendFatal(err.Error())
+		return common.SendFatal(err.Error())
 	}
 
 	return fmt.Sprintf("```ShortName: %s\nType: %s\nFilterA: %s\nFilterB: %s\nName: %s\nColor: %d\nHoist: %t\nPosition: %d\nPermissions: %d\nManaged: %t\nMentionable: %t\n```",
@@ -336,18 +309,18 @@ func roleInfo(ctx context.Context, req *proto.ExecRequest) string {
 func listMembers(ctx context.Context, req *proto.ExecRequest) string {
 	var buffer bytes.Buffer
 	if len(req.Args) != 3 {
-		return sendError("Usage: !role member_list <filter_name>")
+		return common.SendError("Usage: !role member_list <filter_name>")
 	}
 
 	rolesClient := clientFactory.NewRoleClient()
 	members, err := rolesClient.GetMembers(ctx, &rolesrv.Filter{Name: req.Args[2]})
 
 	if err != nil {
-		return sendFatal(err.Error())
+		return common.SendFatal(err.Error())
 	}
 
 	if len(members.Members) == 0 {
-		return sendError("No members in filter")
+		return common.SendError("No members in filter")
 	}
 
 	buffer.WriteString("Filter Members:\n")
@@ -360,20 +333,20 @@ func listMembers(ctx context.Context, req *proto.ExecRequest) string {
 
 func addMember(ctx context.Context, req *proto.ExecRequest) string {
 	if len(req.Args) < 4 {
-		return sendError("Usage: !role member_add <user> <filter>")
+		return common.SendError("Usage: !role member_add <user> <filter>")
 	}
 
 	tmp := req.Args[2]
 	user := tmp[2 : len(tmp)-1]
 	filter := req.Args[3]
 
-	canPerform, err := canPerform(ctx, req, []string{"role_admins"})
+	canPerform, err := role.Permissions.CanPerform(ctx, req.Sender, []string{"role_admins"})
 	if err != nil {
-		return sendFatal(err.Error())
+		return common.SendFatal(err.Error())
 	}
 
 	if !canPerform {
-		return sendError("User doesn't have permission to this command")
+		return common.SendError("User doesn't have permission to this command")
 	}
 
 	rolesClient := clientFactory.NewRoleClient()
@@ -381,24 +354,24 @@ func addMember(ctx context.Context, req *proto.ExecRequest) string {
 	_, err = rolesClient.AddMembers(ctx,
 		&rolesrv.Members{Name: []string{user}, Filter: filter})
 	if err != nil {
-		return sendFatal(err.Error())
+		return common.SendFatal(err.Error())
 	}
 
-	return sendSuccess(fmt.Sprintf("Added '%s' to '%s'\n", user, filter))
+	return common.SendSuccess(fmt.Sprintf("Added '%s' to '%s'\n", user, filter))
 }
 
 func removeMember(ctx context.Context, req *proto.ExecRequest) string {
 	if len(req.Args) < 4 {
-		return sendError("Usage: !role remove_member <user> <filter>")
+		return common.SendError("Usage: !role remove_member <user> <filter>")
 	}
 
-	canPerform, err := canPerform(ctx, req, []string{"role_admins"})
+	canPerform, err := role.Permissions.CanPerform(ctx, req.Sender, []string{"role_admins"})
 	if err != nil {
-		return sendFatal(err.Error())
+		return common.SendFatal(err.Error())
 	}
 
 	if !canPerform {
-		return sendError("User doesn't have permission to this command")
+		return common.SendError("User doesn't have permission to this command")
 	}
 
 	tmp := req.Args[2]
@@ -409,10 +382,10 @@ func removeMember(ctx context.Context, req *proto.ExecRequest) string {
 	_, err = rolesClient.RemoveMembers(ctx,
 		&rolesrv.Members{Name: []string{user}, Filter: filter})
 	if err != nil {
-		return sendFatal(err.Error())
+		return common.SendFatal(err.Error())
 	}
 
-	return sendSuccess(fmt.Sprintf("Removed '%s' from '%s'\n", user, filter))
+	return common.SendSuccess(fmt.Sprintf("Removed '%s' from '%s'\n", user, filter))
 }
 
 func syncRoles(ctx context.Context, req *proto.ExecRequest) string {
@@ -421,7 +394,7 @@ func syncRoles(ctx context.Context, req *proto.ExecRequest) string {
 	response, err := roleClient.SyncRoles(ctx, &rolesrv.NilMessage{})
 
 	if err != nil {
-		return sendFatal(err.Error())
+		return common.SendFatal(err.Error())
 	}
 
 	if len(response.Added) == 0 {
@@ -451,10 +424,10 @@ func syncMembers(ctx context.Context, req *proto.ExecRequest) string {
 	_, err := roleClient.SyncMembers(ctx, &rolesrv.NilMessage{})
 
 	if err != nil {
-		return sendFatal(err.Error())
+		return common.SendFatal(err.Error())
 	}
 
-	return sendSuccess("Done")
+	return common.SendSuccess("Done")
 }
 
 func notDefined(ctx context.Context, req *proto.ExecRequest) string {
@@ -463,31 +436,11 @@ func notDefined(ctx context.Context, req *proto.ExecRequest) string {
 
 func NewCommand(name string, factory ClientFactory) *Command {
 	clientFactory = factory
+	role = crole.Roles{
+		RoleClient: clientFactory.NewRoleClient(),
+		PermsClient: clientFactory.NewPermsClient(),
+		Permissions: common.Permissions{Client: clientFactory.NewPermsClient()},
+	}
 	newCommand := Command{name: name, factory: factory}
 	return &newCommand
-}
-
-func sendSuccess(message string) string {
-	return fmt.Sprintf(":white_check_mark: %s", message)
-}
-
-func sendError(message string) string {
-	return fmt.Sprintf(":warning: %s", message)
-}
-
-func sendFatal(message string) string {
-	return fmt.Sprintf(":octagonal_sign: %s", message)
-}
-
-func canPerform(ctx context.Context, req *proto.ExecRequest, perms []string) (bool, error) {
-	permsClient := clientFactory.NewPermsClient()
-
-	sender := strings.Split(req.Sender, ":")
-	canPerform, err := permsClient.Perform(ctx,
-		&permsrv.PermissionsRequest{User: sender[1], PermissionsList: perms})
-
-	if err != nil {
-		return false, err
-	}
-	return canPerform.CanPerform, nil
 }
