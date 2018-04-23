@@ -6,7 +6,7 @@ import (
 	proto "github.com/chremoas/chremoas/proto"
 	permsrv "github.com/chremoas/perms-srv/proto"
 	rolesrv "github.com/chremoas/role-srv/proto"
-	crole "github.com/chremoas/services-common/roles"
+	crole "github.com/chremoas/role-srv/client"
 	common "github.com/chremoas/services-common/command"
 	"golang.org/x/net/context"
 	"strings"
