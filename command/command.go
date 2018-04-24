@@ -87,23 +87,31 @@ func roleTypes(ctx context.Context, req *proto.ExecRequest) string {
 }
 
 func addRole(ctx context.Context, req *proto.ExecRequest) string {
-	if len(req.Args) < 6 {
-		return common.SendError("Usage: !role role_add <role_short_name> <role_type> <filterA> <role_name>")
+	if len(req.Args) < 5 {
+		return common.SendError("Usage: !role role_add <role_short_name> <filter> <role_name>")
 	}
 
 	return role.AddRole(ctx,
 		req.Sender,
-		req.Args[2],                     // shortName
-		req.Args[3],                     // roleType
-		req.Args[4],                     // filterA
-		"wildcard",                      // filterB
-		strings.Join(req.Args[5:], " "), // roleName
+		req.Args[2], // shortName
+		"discord", // roleType
+		req.Args[3], // filterA
+		"wildcard",  // filterB
+		false,       // Is this SIG joinable? (Not a SIG, so no)
+		strings.Join(req.Args[4:], " "), // roleName
 		false, // Is this a SIG?
 	)
 }
 
 func listRoles(ctx context.Context, req *proto.ExecRequest) string {
-	return role.ListRoles(ctx, false)
+	var all = false
+	if len(req.Args) == 3 {
+		if req.Args[2] == "all" {
+			all = true
+		}
+	}
+
+	return role.ListRoles(ctx, all, false)
 }
 
 func removeRole(ctx context.Context, req *proto.ExecRequest) string {
