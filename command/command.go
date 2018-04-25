@@ -88,8 +88,19 @@ func roleTypes(ctx context.Context, req *proto.ExecRequest) string {
 
 func addRole(ctx context.Context, req *proto.ExecRequest) string {
 	if len(req.Args) < 5 {
-		return common.SendError("Usage: !role role_add <role_short_name> <filter> <role_name>")
+		return common.SendError("Usage: !role create <role_name> <filter> <role_description>")
 	}
+
+	roleName := strings.Join(req.Args[4:], " ")
+
+	if common.IsDiscordUser(req.Args[2]) {
+		return common.SendError("Discord users may not be roles")
+	}
+
+	if common.IsDiscordUser(roleName) {
+		return common.SendError("Discord users may not be descriptions")
+	}
+
 
 	return role.AddRole(ctx,
 		req.Sender,
@@ -98,7 +109,7 @@ func addRole(ctx context.Context, req *proto.ExecRequest) string {
 		req.Args[3], // filterA
 		"wildcard",  // filterB
 		false,       // Is this SIG joinable? (Not a SIG, so no)
-		strings.Join(req.Args[4:], " "), // roleName
+		roleName, // roleName
 		false, // Is this a SIG?
 	)
 }
@@ -116,7 +127,7 @@ func listRoles(ctx context.Context, req *proto.ExecRequest) string {
 
 func removeRole(ctx context.Context, req *proto.ExecRequest) string {
 	if len(req.Args) != 3 {
-		return common.SendError("Usage: !role role_remove <role_name>")
+		return common.SendError("Usage: !role destroy <role_name>")
 	}
 
 	return role.RemoveRole(ctx, req.Sender, req.Args[2], false)
@@ -124,7 +135,7 @@ func removeRole(ctx context.Context, req *proto.ExecRequest) string {
 
 func roleInfo(ctx context.Context, req *proto.ExecRequest) string {
 	if len(req.Args) != 3 {
-		return common.SendError("Usage: !role role_info <role_name>")
+		return common.SendError("Usage: !role info <role_name>")
 	}
 
 	return role.RoleInfo(ctx, req.Sender, req.Args[2], false)
