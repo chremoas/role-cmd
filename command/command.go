@@ -37,8 +37,8 @@ func (c *Command) Help(ctx context.Context, req *proto.HelpRequest, rsp *proto.H
 func (c *Command) Exec(ctx context.Context, req *proto.ExecRequest, rsp *proto.ExecResponse) error {
 	cmd := args.NewArg(cmdName)
 	cmd.Add("list", &args.Command{listRoles, "List all Roles"})
-	cmd.Add("add", &args.Command{addRole, "Add Role"})
-	cmd.Add("remove", &args.Command{removeRole, "Delete role"})
+	cmd.Add("create", &args.Command{addRole, "Add Role"})
+	cmd.Add("destroy", &args.Command{removeRole, "Delete role"})
 	cmd.Add("info", &args.Command{roleInfo, "Get Role Info"})
 	cmd.Add("keys", &args.Command{roleKeys, "Get valid role keys"})
 	cmd.Add("types", &args.Command{roleTypes, "Get valid role types"})
@@ -94,7 +94,7 @@ func addRole(ctx context.Context, req *proto.ExecRequest) string {
 	return role.AddRole(ctx,
 		req.Sender,
 		req.Args[2], // shortName
-		"discord", // roleType
+		"discord",   // roleType
 		req.Args[3], // filterA
 		"wildcard",  // filterB
 		false,       // Is this SIG joinable? (Not a SIG, so no)
