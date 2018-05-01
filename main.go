@@ -45,10 +45,10 @@ type clientFactory struct {
 	client   client.Client
 }
 
-func (c clientFactory) NewPermsClient() permsrv.PermissionsClient {
-	return permsrv.NewPermissionsClient(c.permsSrv, c.client)
+func (c clientFactory) NewPermsClient() permsrv.PermissionsService {
+	return permsrv.NewPermissionsService(c.permsSrv, c.client)
 }
 
-func (c clientFactory) NewRoleClient() rolesrv.RolesClient {
-	return rolesrv.NewRolesClient(c.roleSrv, c.client)
+func (c clientFactory) NewRoleClient() rolesrv.RolesService {
+	return rolesrv.NewRolesService(c.roleSrv, c.client)
 }
