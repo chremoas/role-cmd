@@ -11,7 +11,7 @@ import (
 	"github.com/micro/go-micro/client"
 )
 
-var Version = "1.0.0"
+var Version = "SET ME YOU KNOB"
 var service micro.Service
 var name = "role"
 
