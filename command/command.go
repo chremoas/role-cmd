@@ -9,6 +9,7 @@ import (
 	rolesrv "github.com/chremoas/role-srv/proto"
 	"github.com/chremoas/services-common/args"
 	common "github.com/chremoas/services-common/command"
+	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"strings"
 )
@@ -16,11 +17,13 @@ import (
 type ClientFactory interface {
 	NewPermsClient() permsrv.PermissionsService
 	NewRoleClient() rolesrv.RolesService
+	NewLogger() *zap.Logger
 }
 
 var role rclient.Roles
 var cmdName = "role"
 var clientFactory ClientFactory
+var logger *zap.Logger
 
 type Command struct {
 	//Store anything you need the Help or Exec functions to have access to here
@@ -53,6 +56,7 @@ func (c *Command) Exec(ctx context.Context, req *proto.ExecRequest, rsp *proto.E
 }
 
 func roleKeys(ctx context.Context, req *proto.ExecRequest) string {
+	logger.Info("Calling roleKeys()")
 	var buffer bytes.Buffer
 
 	roleClient := clientFactory.NewRoleClient()
@@ -101,7 +105,6 @@ func addRole(ctx context.Context, req *proto.ExecRequest) string {
 		return common.SendError("Discord users may not be descriptions")
 	}
 
-
 	return role.AddRole(ctx,
 		req.Sender,
 		req.Args[2], // shortName
@@ -109,8 +112,8 @@ func addRole(ctx context.Context, req *proto.ExecRequest) string {
 		req.Args[3], // filterA
 		"wildcard",  // filterB
 		false,       // Is this SIG joinable? (Not a SIG, so no)
-		roleName, // roleName
-		false, // Is this a SIG?
+		roleName,    // roleName
+		false,       // Is this a SIG?
 	)
 }
 
@@ -147,6 +150,7 @@ func syncRoles(ctx context.Context, req *proto.ExecRequest) string {
 
 func NewCommand(name string, factory ClientFactory) *Command {
 	clientFactory = factory
+	logger = factory.NewLogger()
 	role = rclient.Roles{
 		RoleClient:  clientFactory.NewRoleClient(),
 		PermsClient: clientFactory.NewPermsClient(),
