@@ -44,6 +44,7 @@ func initialize(config *config.Configuration) error {
 	proto.RegisterCommandHandler(service.Server(),
 		command.NewCommand(name,
 			&clientFactory,
+			logger,
 		),
 	)
 
@@ -62,8 +63,4 @@ func (c clientFactory) NewPermsClient() permsrv.PermissionsService {
 
 func (c clientFactory) NewRoleClient() rolesrv.RolesService {
 	return rolesrv.NewRolesService(c.roleSrv, c.client)
-}
-
-func (c clientFactory) NewLogger() *zap.Logger {
-	return logger
 }

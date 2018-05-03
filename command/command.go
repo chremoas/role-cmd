@@ -17,18 +17,17 @@ import (
 type ClientFactory interface {
 	NewPermsClient() permsrv.PermissionsService
 	NewRoleClient() rolesrv.RolesService
-	NewLogger() *zap.Logger
 }
 
 var role rclient.Roles
 var cmdName = "role"
 var clientFactory ClientFactory
-var logger *zap.Logger
 
 type Command struct {
 	//Store anything you need the Help or Exec functions to have access to here
 	name    string
 	factory ClientFactory
+	logger  *zap.Logger
 }
 
 func (c *Command) Help(ctx context.Context, req *proto.HelpRequest, rsp *proto.HelpResponse) error {
@@ -38,6 +37,7 @@ func (c *Command) Help(ctx context.Context, req *proto.HelpRequest, rsp *proto.H
 }
 
 func (c *Command) Exec(ctx context.Context, req *proto.ExecRequest, rsp *proto.ExecResponse) error {
+	c.logger.Info("Calling Exec()")
 	cmd := args.NewArg(cmdName)
 	cmd.Add("list", &args.Command{listRoles, "List all Roles"})
 	cmd.Add("create", &args.Command{addRole, "Add Role"})
@@ -56,7 +56,6 @@ func (c *Command) Exec(ctx context.Context, req *proto.ExecRequest, rsp *proto.E
 }
 
 func roleKeys(ctx context.Context, req *proto.ExecRequest) string {
-	logger.Info("Calling roleKeys()")
 	var buffer bytes.Buffer
 
 	roleClient := clientFactory.NewRoleClient()
@@ -148,14 +147,13 @@ func syncRoles(ctx context.Context, req *proto.ExecRequest) string {
 	return role.SyncRoles(ctx)
 }
 
-func NewCommand(name string, factory ClientFactory) *Command {
+func NewCommand(name string, factory ClientFactory, log *zap.Logger) *Command {
 	clientFactory = factory
-	logger = factory.NewLogger()
 	role = rclient.Roles{
 		RoleClient:  clientFactory.NewRoleClient(),
 		PermsClient: clientFactory.NewPermsClient(),
 		Permissions: common.Permissions{Client: clientFactory.NewPermsClient(), PermissionsList: []string{"role_admins"}},
 	}
 
-	return &Command{name: name, factory: factory}
+	return &Command{name: name, factory: factory, logger: log}
 }
