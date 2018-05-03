@@ -39,7 +39,6 @@ func initialize(config *config.Configuration) error {
 		roleSrv:  config.LookupService("srv", "role"),
 		permsSrv: config.LookupService("srv", "perms"),
 		client:   service.Client(),
-		Logger:   logger,
 	}
 
 	proto.RegisterCommandHandler(service.Server(),
