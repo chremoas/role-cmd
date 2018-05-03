@@ -27,7 +27,6 @@ type Command struct {
 	//Store anything you need the Help or Exec functions to have access to here
 	name    string
 	factory ClientFactory
-	logger  *zap.Logger
 }
 
 func (c *Command) Help(ctx context.Context, req *proto.HelpRequest, rsp *proto.HelpResponse) error {
@@ -37,7 +36,6 @@ func (c *Command) Help(ctx context.Context, req *proto.HelpRequest, rsp *proto.H
 }
 
 func (c *Command) Exec(ctx context.Context, req *proto.ExecRequest, rsp *proto.ExecResponse) error {
-	c.logger.Info("Calling Exec()")
 	cmd := args.NewArg(cmdName)
 	cmd.Add("list", &args.Command{listRoles, "List all Roles"})
 	cmd.Add("create", &args.Command{addRole, "Add Role"})
@@ -153,7 +151,8 @@ func NewCommand(name string, factory ClientFactory, log *zap.Logger) *Command {
 		RoleClient:  clientFactory.NewRoleClient(),
 		PermsClient: clientFactory.NewPermsClient(),
 		Permissions: common.Permissions{Client: clientFactory.NewPermsClient(), PermissionsList: []string{"role_admins"}},
+		Logger: log,
 	}
 
-	return &Command{name: name, factory: factory, logger: log}
+	return &Command{name: name, factory: factory}
 }

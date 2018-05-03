@@ -19,9 +19,10 @@ var name = "role"
 
 func main() {
 	service = config.NewService(Version, "cmd", name, initialize)
+	var err error
 
 	// TODO pick stuff up from the config
-	logger, err := zap.NewProduction()
+	logger, err = zap.NewProduction()
 	if err != nil {
 		panic(err)
 	}
