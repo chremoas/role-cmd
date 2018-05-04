@@ -142,7 +142,7 @@ func roleInfo(ctx context.Context, req *proto.ExecRequest) string {
 }
 
 func syncRoles(ctx context.Context, req *proto.ExecRequest) string {
-	return role.SyncRoles(ctx)
+	return role.SyncRoles(ctx, req.Sender)
 }
 
 func NewCommand(name string, factory ClientFactory, log *zap.Logger) *Command {
