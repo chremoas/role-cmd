@@ -92,6 +92,15 @@ func addRole(ctx context.Context, req *proto.ExecRequest) string {
 		return common.SendError("Usage: !role create <role_name> <filter> <role_description>")
 	}
 
+	canPerform, err := role.Permissions.CanPerform(ctx, req.Sender)
+	if err != nil {
+		return common.SendFatal(err.Error())
+	}
+
+	if !canPerform {
+		return common.SendError("User doesn't have permission to this command")
+	}
+
 	roleName := strings.Join(req.Args[4:], " ")
 
 	if common.IsDiscordUser(req.Args[2]) {
@@ -128,6 +137,15 @@ func listRoles(ctx context.Context, req *proto.ExecRequest) string {
 func removeRole(ctx context.Context, req *proto.ExecRequest) string {
 	if len(req.Args) != 3 {
 		return common.SendError("Usage: !role destroy <role_name>")
+	}
+
+	canPerform, err := role.Permissions.CanPerform(ctx, req.Sender)
+	if err != nil {
+		return common.SendFatal(err.Error())
+	}
+
+	if !canPerform {
+		return common.SendError("User doesn't have permission to this command")
 	}
 
 	return role.RemoveRole(ctx, req.Sender, req.Args[2], false)
