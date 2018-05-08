@@ -44,6 +44,7 @@ func (c *Command) Exec(ctx context.Context, req *proto.ExecRequest, rsp *proto.E
 	cmd.Add("keys", &args.Command{roleKeys, "Get valid role keys"})
 	cmd.Add("types", &args.Command{roleTypes, "Get valid role types"})
 	cmd.Add("sync", &args.Command{syncRoles, "Sync Roles to chat service"})
+	cmd.Add("set", &args.Command{setRoles, "Set role key"})
 	err := cmd.Exec(ctx, req, rsp)
 
 	// I don't 100% love this, but it'll do for now. -brian
@@ -161,6 +162,23 @@ func roleInfo(ctx context.Context, req *proto.ExecRequest) string {
 
 func syncRoles(ctx context.Context, req *proto.ExecRequest) string {
 	return role.SyncRoles(ctx, req.Sender)
+}
+
+func setRoles(ctx context.Context, req *proto.ExecRequest) string {
+	if len(req.Args) != 5 {
+		return common.SendError("Usage: !role set <role_name> <key> <value>")
+	}
+
+	canPerform, err := role.Permissions.CanPerform(ctx, req.Sender)
+	if err != nil {
+		return common.SendFatal(err.Error())
+	}
+
+	if !canPerform {
+		return common.SendError("User doesn't have permission to this command")
+	}
+
+	return role.Set(ctx, req.Sender, req.Args[2], req.Args[3], req.Args[4])
 }
 
 func NewCommand(name string, factory ClientFactory, log *zap.Logger) *Command {
