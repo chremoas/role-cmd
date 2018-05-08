@@ -45,6 +45,7 @@ func (c *Command) Exec(ctx context.Context, req *proto.ExecRequest, rsp *proto.E
 	cmd.Add("types", &args.Command{roleTypes, "Get valid role types"})
 	cmd.Add("sync", &args.Command{syncRoles, "Sync Roles to chat service"})
 	cmd.Add("set", &args.Command{setRoles, "Set role key"})
+	cmd.Add("list_members", &args.Command{getMembers, "List Role members"})
 	err := cmd.Exec(ctx, req, rsp)
 
 	// I don't 100% love this, but it'll do for now. -brian
@@ -179,6 +180,14 @@ func setRoles(ctx context.Context, req *proto.ExecRequest) string {
 	}
 
 	return role.Set(ctx, req.Sender, req.Args[2], req.Args[3], req.Args[4])
+}
+
+func getMembers(ctx context.Context, req *proto.ExecRequest) string {
+	if len(req.Args) != 3 {
+		return common.SendError("Usage: !role list_members <sig_name>")
+	}
+
+	return role.GetMembers(ctx, req.Args[2])
 }
 
 func NewCommand(name string, factory ClientFactory, log *zap.Logger) *Command {
