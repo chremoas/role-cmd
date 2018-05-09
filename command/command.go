@@ -42,7 +42,8 @@ func (c *Command) Exec(ctx context.Context, req *proto.ExecRequest, rsp *proto.E
 	cmd.Add("destroy", &args.Command{removeRole, "Delete role"})
 	cmd.Add("info", &args.Command{roleInfo, "Get Role Info"})
 	cmd.Add("keys", &args.Command{roleKeys, "Get valid role keys"})
-	cmd.Add("types", &args.Command{roleTypes, "Get valid role types"})
+	// this isn't currently used.
+	//cmd.Add("types", &args.Command{roleTypes, "Get valid role types"})
 	cmd.Add("sync", &args.Command{syncRoles, "Sync Roles to chat service"})
 	cmd.Add("set", &args.Command{setRoles, "Set role key"})
 	cmd.Add("list_members", &args.Command{getMembers, "List Role members"})
