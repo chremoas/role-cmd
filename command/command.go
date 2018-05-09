@@ -196,7 +196,7 @@ func NewCommand(name string, factory ClientFactory, log *zap.Logger) *Command {
 	role = rclient.Roles{
 		RoleClient:  clientFactory.NewRoleClient(),
 		PermsClient: clientFactory.NewPermsClient(),
-		Permissions: common.Permissions{Client: clientFactory.NewPermsClient(), PermissionsList: []string{"role_admins"}},
+		Permissions: common.NewPermission(clientFactory.NewPermsClient(), []string{"role_admins"}),
 		Logger: log,
 	}
 
