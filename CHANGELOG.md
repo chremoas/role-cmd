@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
-## [1.1.0] - TBD
+## [1.1.0] - 2018-06-11
 ### Added
 - Changelog
 - Added list_roles command
