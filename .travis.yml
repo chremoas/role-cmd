@@ -1,6 +1,3 @@
-branches:
-  only:
-    - travis_config
 language: go
 sudo: false
 go:
@@ -15,4 +12,4 @@ deploy:
   provider: script
   script: make publish
   on:
-    branch: travis_config
+    branch: master
