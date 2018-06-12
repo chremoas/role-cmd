@@ -4,6 +4,8 @@ branches:
 language: go
 sudo: false
 go:
-  - 1.8
+  - 1.9
+before_install:
+  - go get -t ./...
 before_deploy:
-  - docker login -u "${DOCKER_USER}" -p "${DOCKER_PASSWORD}"
+  - docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}
