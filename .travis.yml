@@ -11,3 +11,5 @@ script:
   - make tag
 before_deploy:
   - docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}
+deply:
+  - make publish
