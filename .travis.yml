@@ -15,4 +15,4 @@ deploy:
   provider: script
   script: make publish
   on:
-    branch: master
+    branch: travis_config
