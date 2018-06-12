@@ -7,5 +7,7 @@ go:
   - 1.9
 before_install:
   - go get -t ./...
+script:
+  - make tag
 before_deploy:
   - docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}
