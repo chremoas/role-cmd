@@ -12,4 +12,7 @@ script:
 before_deploy:
   - docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}
 deploy:
-  - make publish
+  provider: script
+  script: make publish
+  on:
+    branch: master
