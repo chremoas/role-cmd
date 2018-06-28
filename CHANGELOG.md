@@ -6,11 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
-## [1.1.1] - 2018-06-11
-### Changed
-- Tagged and rebuilt to pickup changes in role-srv/client
-
-## [1.1.0] - 2018-06-11
+## [1.1.5] - 2018-06-28
 ### Added
 - Changelog
-- Added list_roles command
+- Travis Building/Tagging
