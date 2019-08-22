@@ -5,7 +5,7 @@ go 1.12
 require (
 	github.com/chremoas/chremoas v1.2.5
 	github.com/chremoas/perms-srv v1.2.5
-	github.com/chremoas/role-srv v1.2.5
+	github.com/chremoas/role-srv v1.2.6
 	github.com/chremoas/services-common v1.2.5
 	github.com/micro/go-micro v1.9.1
 	go.uber.org/zap v1.10.0
